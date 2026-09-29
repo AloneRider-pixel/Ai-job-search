@@ -89,20 +89,15 @@ export default function InterviewPage(){
       if(!res.ok)throw new Error(data.error??"Unable to evaluate answer.");
       setEvaluation(data.evaluation as Evaluation);
       setAnswer("");
-      if(data.nextQuestion){
-        setQuestions(prev=>prev.map(question=>question.id===currentQuestion.id
-          ?{...question,latestAnswer:{id:0,questionId:question.id,attempt:data.attempt,answerText:"",score:data.evaluation.score,confidence:data.evaluation.confidence,verdict:data.evaluation.verdict,strengths:data.evaluation.strengths,gaps:data.evaluation.gaps,feedback:data.evaluation.feedback,coveredSignals:data.evaluation.coveredSignals,rubric:data.evaluation.rubric,createdAt:new Date().toISOString()}}
-          :question));
-        if(data.followUpCreated)setNotice("Low-score answer detected. A targeted follow-up was inserted into the interview.");
+      const refreshed=await fetch("/api/interview/sessions/"+session.id);
+      const refreshedData=await refreshed.json();
+      if(refreshed.ok){
+        setSession(refreshedData.session as Session);
+        setQuestions((refreshedData.questions??[]) as Question[]);
       }else{
-        const refreshed=await fetch("/api/interview/sessions/"+session.id);
-        const refreshedData=await refreshed.json();
-        if(refreshed.ok){
-          setSession(refreshedData.session as Session);
-          setQuestions((refreshedData.questions??[]) as Question[]);
-        }
+        setSession(prev=>prev?{...prev,answeredCount:data.answeredCount,questionCount:data.questionCount}:prev);
       }
-      setSession(prev=>prev?{...prev,answeredCount:data.answeredCount,questionCount:data.questionCount}:prev);
+      if(data.followUpCreated)setNotice("Low-score answer detected. A targeted follow-up was inserted into the interview.");
     }catch(error){setNotice(error instanceof Error?error.message:"Unable to evaluate answer.");}
     finally{setBusy("");}
   }

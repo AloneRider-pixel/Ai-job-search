@@ -95,7 +95,7 @@ The product is designed to improve application quality and job-search efficiency
 
 - Delta-based mailbox synchronization and scheduled refresh workers
 - Adaptive interview simulator
-- Outcome-learning ranking model
+- Scheduled mailbox refresh workers
 - Outcome-based job-ranking calibration
 - Dashboard migration from demo-local state to fully persistent APIs
 
@@ -150,6 +150,19 @@ The dashboard now reads profile, jobs, applications and generated packages throu
 
 Mailbox synchronization now uses provider-native change cursors: Gmail stores a mailbox `historyId`, while Microsoft Graph stores separate Inbox and Sent Items delta links. Microsoft Graph delta returns opaque `@odata.nextLink` and `@odata.deltaLink` state URLs; Gmail's `history.list` returns changes after a stored `startHistoryId`. These cursors allow later syncs to request changes rather than repeatedly scanning the recent mailbox. citeturn935138search1turn474597search0
 
+
+## Adaptive InterviewOS
+
+CareerOS now includes a persistent interview simulator at `/interview`:
+- JD- and evidence-grounded question generation
+- Mixed, technical, behavioral, and system-design modes
+- Per-answer scoring for correctness, depth, relevance, and communication
+- Persistent answer history with multiple attempts
+- Low-score adaptive follow-up questions inserted into the active session
+- Session completion scores, readiness summary, strengths, and gaps
+- Deterministic fallback behavior when `OPENAI_API_KEY` is unavailable
+
+Interview simulation is practice infrastructure only. Scores describe answer quality against the supplied rubric and do not predict employer decisions.
 
 ## Outcome Learning Engine
 

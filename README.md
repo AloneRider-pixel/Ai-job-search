@@ -149,3 +149,10 @@ Apollo's current People API Search supports employer-domain and title filters an
 The dashboard now reads profile, jobs, applications and generated packages through authenticated server APIs. Application tracking is persisted in PostgreSQL rather than browser localStorage, and the application-package endpoint builds from the server-owned profile before persisting a new package version.
 
 Mailbox synchronization now uses provider-native change cursors: Gmail stores a mailbox `historyId`, while Microsoft Graph stores separate Inbox and Sent Items delta links. Microsoft Graph delta returns opaque `@odata.nextLink` and `@odata.deltaLink` state URLs; Gmail's `history.list` returns changes after a stored `startHistoryId`. These cursors allow later syncs to request changes rather than repeatedly scanning the recent mailbox. citeturn935138search1turn474597search0
+
+
+## Outcome Learning Engine
+
+CareerOS now treats application outcomes as an observed feedback stream. Every application creation or stage transition records a tenant-scoped stage event with its source (user or mailbox). A versioned per-profile learning model aggregates observed applications into smoothed funnel rates by role family, package fit band, job source, and work mode.
+
+The learner is deliberately conservative: it never labels an un-applied job as a negative outcome, requires a minimum amount of observed history before changing Job Radar, and caps the learned relevance adjustment. Job Radar exposes the base score, learned adjustment, and learning model version so the UI can explain why a ranking changed. `/learning` exposes the baseline funnel, feature buckets, recent stage events, and manual retraining control.

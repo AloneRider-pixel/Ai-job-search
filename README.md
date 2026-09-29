@@ -142,3 +142,10 @@ HUNTER_API_KEY=
 ```
 
 Apollo's current People API Search supports employer-domain and title filters and does not return email addresses; People Enrichment can return a LinkedIn URL, email, and email status. Hunter's Domain Finder resolves a company name to likely employer domains. These provider integrations are optional until their credentials are configured. See the current provider documentation. 
+
+
+## Persistent state + incremental sync
+
+The dashboard now reads profile, jobs, applications and generated packages through authenticated server APIs. Application tracking is persisted in PostgreSQL rather than browser localStorage, and the application-package endpoint builds from the server-owned profile before persisting a new package version.
+
+Mailbox synchronization now uses provider-native change cursors: Gmail stores a mailbox `historyId`, while Microsoft Graph stores separate Inbox and Sent Items delta links. Microsoft Graph delta returns opaque `@odata.nextLink` and `@odata.deltaLink` state URLs; Gmail's `history.list` returns changes after a stored `startHistoryId`. These cursors allow later syncs to request changes rather than repeatedly scanning the recent mailbox. citeturn935138search1turn474597search0

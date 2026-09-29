@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
@@ -63,9 +63,6 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>
       });
       const nextSequence=question.sequence+1;
       await db.transaction(async tx=>{
-        await tx.update(interviewQuestions).set({
-          sequence:sql`sequence + 1`,updatedAt:new Date()
-        }).where(and(eq(interviewQuestions.sessionId,sessionId),gt(interviewQuestions.sequence,question.sequence)));
         const [created]=await tx.insert(interviewQuestions).values({
           sessionId,sequence:nextSequence,type:generated.question.type,area:generated.question.area,
           question:generated.question.question,expectedSignals:generated.question.expectedSignals,

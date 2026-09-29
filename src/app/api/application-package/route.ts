@@ -1,103 +1,90 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
+import { buildAIApplicationPackage } from "@/lib/ai/application-package";
 
 type Profile = {
   name: string;
-  headline: string;
+  headline?: string;
   experienceYears: number;
   skills: string[];
-  summary: string;
+  summary?: string;
   experience: { title: string; company: string; bullets: string[] }[];
 };
 
-const SKILLS = [
-  "Python","TypeScript","JavaScript","React","Next.js","Node.js","FastAPI","Flask","PostgreSQL",
-  "SQL","Redis","Docker","Kubernetes","AWS","GraphQL","REST APIs","CI/CD","Git","Testing",
-  "RAG","LLMs","Prompt Engineering","LangGraph","Airflow","dbt","Snowflake","System Design",
-  "Tailwind CSS","HTML","CSS","Java","C++","Power BI"
-];
+const requestSchema = z.object({
+  jd: z.string().min(40).max(60000),
+  title: z.string().min(1).max(240),
+  company: z.string().min(1).max(240),
+  profile: z.object({
+    name: z.string().min(1).max(160),
+    headline: z.string().max(240).optional(),
+    experienceYears: z.number().min(0).max(60),
+    skills: z.array(z.string().min(1).max(120)).max(200),
+    summary: z.string().max(5000).optional(),
+    experience: z.array(z.object({
+      title: z.string().max(180),
+      company: z.string().max(180),
+      bullets: z.array(z.string().max(1000)).max(20),
+    })).max(30),
+  }),
+});
 
-function normalize(s: string) {
-  return s.toLowerCase().replace(/[^a-z0-9+#.\s]/g, " ").replace(/\s+/g, " ").trim();
-}
-function tokens(s: string) {
-  return new Set(normalize(s).split(" ").filter(function (x) { return x.length > 2; }));
-}
-function overlap(a: string, b: string) {
-  const aa=tokens(a), bb=tokens(b);
-  if (!aa.size || !bb.size) return 0;
-  let n=0; aa.forEach(function(t){if(bb.has(t))n++});
-  return n/Math.max(aa.size,1);
-}
-function extractSkills(jd: string) {
-  const low=jd.toLowerCase();
-  return SKILLS.filter(function(s){return low.includes(s.toLowerCase());});
-}
-function extractRequirements(jd: string) {
-  const lines=jd.split(/\n|•|·/).map(function(x){return x.trim();}).filter(function(x){return x.length>=14 && x.length<=240;});
-  return lines.filter(function(x){return /\b(require|must|minimum|experience|build|design|develop|ship|own|strong|proficient|expert|knowledge|familiar)\b/i.test(x);}).slice(0,16);
-}
+const SKILLS=["Python","TypeScript","JavaScript","React","Next.js","Node.js","FastAPI","Flask","PostgreSQL","SQL","Redis","Docker","Kubernetes","AWS","GraphQL","REST APIs","CI/CD","Git","Testing","RAG","LLMs","Prompt Engineering","LangGraph","Airflow","dbt","Snowflake","System Design","Tailwind CSS","HTML","CSS","Java","C++","Power BI"];
 
-function buildPackage(profile: Profile, jd: string, title: string, company: string) {
-  const skills=extractSkills(jd);
-  const reqs=extractRequirements(jd);
-  const corpus=profile.experience.flatMap(function(e){return e.bullets.map(function(b){return {source:"experience",text:e.title+" @ "+e.company+": "+b};});});
-  const matchedSkills=skills.filter(function(s){
-    const ns=normalize(s);
-    return profile.skills.some(function(p){const np=normalize(p);return np===ns || np.indexOf(ns)>=0 || ns.indexOf(np)>=0;});
+function normalize(s:string){return s.toLowerCase().replace(/[^a-z0-9+#.\s]/g," ").replace(/\s+/g," ").trim();}
+function overlap(a:string,b:string){const aa=new Set(normalize(a).split(" ").filter(x=>x.length>2));const bb=new Set(normalize(b).split(" ").filter(x=>x.length>2));let n=0;aa.forEach(x=>{if(bb.has(x))n++;});return aa.size?n/aa.size:0;}
+function fallback(profile:Profile,jd:string,title:string,company:string){
+  const found=SKILLS.filter(s=>jd.toLowerCase().includes(s.toLowerCase()));
+  const matched=found.filter(s=>profile.skills.some(p=>normalize(p)===normalize(s)||normalize(p).includes(normalize(s))||normalize(s).includes(normalize(p))));
+  const missing=found.filter(s=>!matched.includes(s));
+  const reqs=jd.split(/\n|•|·/).map(x=>x.trim()).filter(x=>x.length>=18).slice(0,12);
+  const requirements=reqs.map((r,i)=>{
+    const best=profile.experience.flatMap(e=>e.bullets.map(b=>({text:"["+e.title+" @ "+e.company+"] "+b,score:overlap(r,b)}))).sort((a,b)=>b.score-a.score)[0];
+    const ok=Boolean(best&&best.score>=.22);
+    return {id:"req-"+(i+1),requirement:r,matched:ok,confidence:ok?Math.min(95,Math.round(55+best.score*40)):0,evidence:ok?[{source:"profile",text:best.text,score:best.score}]:[],gap:ok?null:"No verified candidate evidence. Do not add this requirement as a resume claim."};
   });
-  const missingSkills=skills.filter(function(s){return !matchedSkills.includes(s);});
-  const evidence=reqs.map(function(r,i){
-    const ranked=corpus.map(function(x){return {...x,score:overlap(r,x.text)};}).filter(function(x){return x.score>=0.2;}).sort(function(a,b){return b.score-a.score;}).slice(0,2);
-    const direct=matchedSkills.find(function(s){return normalize(r).indexOf(normalize(s))>=0;});
-    if(direct && ranked.length===0) ranked.push({source:"skill",text:"Verified profile skill: "+direct,score:.72});
-    const ok=ranked.length>0;
-    return {id:"req-"+(i+1),requirement:r,matched:ok,confidence:ok?Math.min(99,Math.round(55+ranked[0].score*40)):0,evidence:ranked,gap:ok?null:"No verified evidence in the profile. Keep this requirement visible; do not add it as a resume claim."};
-  });
-  const coverage=reqs.length?Math.round(evidence.filter(function(e){return e.matched;}).length/reqs.length*100):Math.round(matchedSkills.length/Math.max(skills.length,1)*100);
-  const skillCoverage=skills.length?Math.round(matchedSkills.length/skills.length*100):50;
-  const years=profile.experienceYears;
-  const yrMatch=jd.match(/(\d{1,2})\+?\s*(?:years|yrs?)/i);
-  const seniority=yrMatch ? (years>=Number(yrMatch[1])?95:Math.max(30,70-(Number(yrMatch[1])-years)*12)) : 75;
-  const score=Math.max(10,Math.min(98,Math.round(skillCoverage*.45+coverage*.35+seniority*.2)));
-  const topProof=profile.experience[0]?.bullets?.slice(0,2) ?? [];
-  const orderedSkills=[...matchedSkills,...profile.skills.filter(function(s){return !matchedSkills.includes(s);})];
-  const resume=[
-    profile.name.toUpperCase(),
-    title,
-    profile.headline+" · "+profile.experienceYears+"+ years",
-    profile.summary,
-    "",
-    "SKILLS",
-    orderedSkills.join(" · "),
-    "",
-    "EXPERIENCE",
-    ...profile.experience.flatMap(function(e){return [e.title+" — "+e.company,...e.bullets.slice().sort(function(a,b){return overlap(jd,a)-overlap(jd,b);}).slice(0,4).map(function(b){return "• "+b;}),""];})
-  ].join("\n");
-  const proof=topProof[0] ?? profile.summary;
-  const email={
-    subject:title+" — relevant engineering evidence",
-    body:"Hi Hiring Team,\n\nI'm preparing an application for the "+title+" role at "+company+". The strongest overlap I can prove is "+(matchedSkills.slice(0,3).join(", ")||"core software engineering")+" .\n\nOne concrete proof point: "+proof+"\n\nI've tailored my resume around the requirements I can genuinely prove, while keeping missing requirements explicit.\n\nI'd appreciate a brief conversation about the role and where this background could be useful.\n\n"+profile.name
-  };
-  const gaps=missingSkills.slice(0,5).map(function(g){return {gap:g,action:"Study "+g+", complete one hands-on exercise, and only add it to the resume after you have real evidence."};});
+  const coverage=requirements.length?Math.round(requirements.filter(r=>r.matched).length/requirements.length*100):50;
+  const skillCoverage=found.length?Math.round(matched.length/found.length*100):50;
+  const score=Math.max(10,Math.min(98,Math.round(skillCoverage*.5+coverage*.3+75*.2)));
+  const bullets=profile.experience.flatMap(e=>e.bullets.slice().sort((a,b)=>overlap(jd,b)-overlap(jd,a)).slice(0,4).map(b=>({experience:e.title,company:e.company,bullet:b,evidence:["Source profile experience"]})));
   return {
-    job:{title,company},score,confidence:Math.max(50,Math.min(99,coverage)),
-    skillCoverage,coverage,matchedSkills,missingSkills,blockers:evidence.filter(function(e){return !e.matched;}).length,
-    requirements:evidence,resume:{content:resume,atsScore:Math.max(0,Math.min(99,Math.round(score*.7+coverage*.3)))},outreach:email,learning:gaps,
-    nextActions:[
-      "Review every missing must-have before applying.",
-      "Use only evidence-backed resume claims.",
-      "Verify a real recruiter or hiring manager through an authorized source.",
-      "Submit manually, then log the outcome so future ranking can learn."
-    ]
+    job:{title,company},score,confidence:coverage,skillCoverage,coverage,matchedSkills:matched,missingSkills:missing,
+    blockers:requirements.filter(r=>!r.matched).map(r=>r.requirement),requirements,
+    resume:{content:[profile.name.toUpperCase(),title,profile.headline??"Software Engineer",profile.summary??"","","SKILLS",[...matched,...profile.skills.filter(s=>!matched.includes(s))].join(" · "),"","EXPERIENCE",...bullets.map(b=>"• "+b.bullet)].join("\n"),atsScore:Math.round(score*.7+coverage*.3)},
+    outreach:{subject:title+" — application",body:"Hi Hiring Team,\n\nI’m preparing an application for the "+title+" role at "+company+". My strongest verified overlap is "+(matched.slice(0,3).join(", ")||"software engineering")+" .\n\nI’d welcome a brief conversation about the role.\n\n"+profile.name,personalizationSignals:[],verificationRequired:true},
+    learning:missing.slice(0,6).map(g=>({gap:g,priority:"medium",rationale:"The JD mentions this skill but the current profile has no verified evidence.",action:"Study "+g+" and build real evidence before claiming it."})),
+    interviewPrep:found.slice(0,5).map(s=>({area:s,questions:["Explain your production experience with "+s+".","How would you approach a "+s+" problem in this role?"]})),
+    nextActions:["Review uncovered requirements.","Only use evidence-backed resume claims.","Verify recruiter/contact data through an authorized source.","Track the outcome so future ranking can learn."]
   };
 }
 
-export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const jd=String(body.jd??"").trim();
-  if(jd.length<40) return Response.json({error:"Paste a full job description (at least 40 characters)."}, {status:400});
-  const profile:Profile=body.profile ?? {
-    name:"Candidate",headline:"Software Engineer",experienceYears:2,skills:["Python","SQL","FastAPI","PostgreSQL","Docker","AWS"],summary:"Software engineer with production experience building reliable backend systems.",experience:[{title:"Software Engineer",company:"Current Company",bullets:["Built and shipped production services with measurable reliability and performance improvements."]}]
-  };
-  return Response.json({package:buildPackage(profile,jd,String(body.title??"Target role"),String(body.company??"Target company"))});
+export async function POST(req:NextRequest){
+  try{
+    const payload=requestSchema.parse(await req.json());
+    if(process.env.OPENAI_API_KEY){
+      try{
+        const result=await buildAIApplicationPackage(payload);
+        const ai=result.data;
+        const resumeContent=[payload.profile.name.toUpperCase(),payload.title,payload.profile.headline??"",ai.resume.summary,"","SKILLS",ai.resume.skills.join(" · "),"","EXPERIENCE",...ai.resume.bullets.map(b=>"• "+b.bullet)].join("\n");
+        return Response.json({
+          package:{
+            job:{title:payload.title,company:payload.company},score:ai.fitScore,confidence:ai.confidence,
+            skillCoverage:ai.matchedSkills.length?Math.round(ai.matchedSkills.length/Math.max(ai.matchedSkills.length+ai.missingSkills.length,1)*100):50,
+            coverage:ai.requirements.length?Math.round(ai.requirements.filter(r=>r.matched).length/ai.requirements.length*100):0,
+            matchedSkills:ai.matchedSkills,missingSkills:ai.missingSkills,blockers:ai.blockers,
+            requirements:ai.requirements.map((r,i)=>({id:"req-"+(i+1),...r,evidence:r.evidence.map(text=>({source:"AI evidence mapping",text,score:r.confidence/100}))})),
+            resume:{content:resumeContent,atsScore:ai.resume.atsScore},
+            outreach:ai.outreach,learning:ai.learning,interviewPrep:ai.interviewPrep,nextActions:ai.nextActions
+          },
+          aiPowered:true,model:result.model,generatedAt:new Date().toISOString()
+        });
+      }catch(error){
+        console.warn("AI application package failed; using deterministic fallback.",error);
+      }
+    }
+    return Response.json({package:fallback(payload.profile,payload.jd,payload.title,payload.company),aiPowered:false,model:null,generatedAt:new Date().toISOString()});
+  }catch(error){
+    if(error&&typeof error==="object"&&"issues" in error)return Response.json({error:"Invalid application package request.",details:(error as {issues:unknown}).issues},{status:400});
+    return Response.json({error:error instanceof Error?error.message:"Unable to build application package."},{status:400});
+  }
 }

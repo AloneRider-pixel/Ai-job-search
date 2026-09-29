@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { applicationPackages, applications, jobs, rankingCalibrations } from "@/db/schema";
+import { applicationPackages, applicationStageEvents, applications, jobs, rankingCalibrations } from "@/db/schema";
 
 const STAGES:Record<string,number>={wishlist:0,applied:1,screening:2,interview:3,offer:4,rejected:5};
 
@@ -102,8 +102,11 @@ async function loadRows(profileId:number){
     .where(eq(applications.profileId,profileId))
     .orderBy(desc(applications.updatedAt));
 }
-function recordFor(row:Awaited<ReturnType<typeof loadRows>>[number]){
-  const rank=STAGES[row.application.stage]??0;
+function recordFor(row:Awaited<ReturnType<typeof loadRows>>[number],stageHistory:Map<number,string[]>){
+  const history=stageHistory.get(row.application.id)??[];
+  const historicalStages=[...history,row.application.stage];
+  const nonRejected=historicalStages.filter(value=>value!=="rejected");
+  const rank=Math.max(0,...nonRejected.map(value=>STAGES[value]??0));
   return {
     roleFamily:roleFamily(row.job.title),
     seniority:seniority(row.job.title),
@@ -117,7 +120,20 @@ function recordFor(row:Awaited<ReturnType<typeof loadRows>>[number]){
 }
 export async function trainRankingCalibration(profileId:number){
   const rows=await loadRows(profileId);
-  const records=rows.map(recordFor);
+  const historyRows=await db.select({
+    applicationId:applicationStageEvents.applicationId,
+    toStage:applicationStageEvents.toStage,
+    occurredAt:applicationStageEvents.occurredAt
+  }).from(applicationStageEvents)
+    .where(eq(applicationStageEvents.profileId,profileId))
+    .orderBy(applicationStageEvents.occurredAt);
+  const stageHistory=new Map<number,string[]>();
+  for(const event of historyRows){
+    const list=stageHistory.get(event.applicationId)??[];
+    list.push(event.toStage);
+    stageHistory.set(event.applicationId,list);
+  }
+  const records=rows.map(row=>recordFor(row,stageHistory));
   const baseline=smoothStat(records,0.5);
   const baselineIndex=baseline.outcomeIndex;
   const featureGroups:Record<string,Record<string,CalibrationStat>>={

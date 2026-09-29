@@ -126,3 +126,24 @@ The PDF parser follows the current `pdf-parse` API and releases, while DOCX extr
 The mailbox layer supports Gmail and Microsoft Graph authorization, encrypted token storage, mailbox synchronization, normalized email storage, application-event detection, application-stage updates, follow-up stopping, and explicit outbound email approval.
 
 Google's server-side OAuth guidance uses an authorization code flow with offline access for background mailbox access; Microsoft documents the OAuth authorization-code flow with delegated Graph permissions. Gmail message listing exposes message/thread identifiers, and Graph supports delta-query change tracking for later incremental synchronization. See the official provider documentation. 
+
+
+## Recruiter intelligence layer
+
+CareerOS can discover recruiter and hiring-side contact candidates for a specific job through a provider-backed workflow:
+
+1. Resolve the employer domain from job metadata/URL or Hunter Domain Finder.
+2. Search Apollo for current recruiting or hiring-side people at that employer.
+3. Enrich the highest-signal candidates for LinkedIn URL, email, email status, and provider match metadata.
+4. Store source evidence, provider person IDs, job association, confidence, and verification state.
+5. Keep every discovered contact in `candidate` approval state until the user reviews it.
+6. Allow outreach only after the contact is explicitly approved and the email is provider-verified.
+
+Environment:
+
+```bash
+APOLLO_API_KEY=
+HUNTER_API_KEY=
+```
+
+Apollo's current People API Search supports employer-domain and title filters and does not return email addresses; People Enrichment can return a LinkedIn URL, email, and email status. Hunter's Domain Finder resolves a company name to likely employer domains. These provider integrations are optional until their credentials are configured. See the current provider documentation. 

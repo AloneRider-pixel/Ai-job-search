@@ -18,6 +18,7 @@ export async function POST(req:NextRequest){
     if(!profile)return Response.json({error:"Profile not found."},{status:404});
     const [contact]=await db.select().from(recruiterContacts).where(and(eq(recruiterContacts.id,payload.contactId),eq(recruiterContacts.profileId,profile.id))).limit(1);
     if(!contact)return Response.json({error:"Contact not found."},{status:404});
+    if(contact.approvalState!=="approved")return Response.json({error:"Contact must be explicitly approved before outreach."},{status:409});
     if(contact.verificationState!=="verified"||!contact.email)return Response.json({error:"Contact email must be verified before sending."},{status:409});
     if(payload.applicationId){
       const [application]=await db.select({id:applications.id}).from(applications).where(and(eq(applications.id,payload.applicationId),eq(applications.profileId,profile.id))).limit(1);

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { applicationPackages, jobs } from "@/db/schema";

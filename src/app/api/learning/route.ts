@@ -1,4 +1,3 @@
-import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { applicationStageEvents } from "@/db/schema";
 import { getOutcomeModel, retrainOutcomeModel } from "@/lib/learning/engine";
@@ -18,9 +17,8 @@ export async function GET(){
   }
 }
 
-export async function POST(req:NextRequest){
+export async function POST(){
   try{
-    void req;
     const current=await requireAuth();
     const profile=await getProfileWithExperiences(current.user.id);
     if(!profile)return Response.json({error:"Profile not found."},{status:404});

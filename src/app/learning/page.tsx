@@ -33,7 +33,7 @@ export default function LearningPage(){
       const res=await fetch("/api/learning",{method:"POST"});
       const data=await res.json();
       if(!res.ok)throw new Error(data.error??"Retrain failed.");
-      setModel(data.model);setCalibration(data.calibration??null);await load();setMessage("Outcome model and ranking calibration retrained from "+data.model.sampleCount+" observed applications.");
+      setModel(data.model);setCalibration(data.calibration??null);await load();setMessage("Outcome model and ranking calibration retrained from "+data.model.sampleCount+" observed outcome records.");
     }catch(error){setMessage(error instanceof Error?error.message:"Retrain failed.");}
     finally{setBusy(false);}
   }

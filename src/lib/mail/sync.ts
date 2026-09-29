@@ -7,6 +7,7 @@ import { getConnection, getValidSecrets } from "@/lib/mail/connection";
 import { syncGoogleMessages } from "@/lib/mail/providers/google";
 import { MicrosoftMailCursor, syncMicrosoftMessages } from "@/lib/mail/providers/microsoft";
 import { MailProvider } from "@/lib/mail/types";
+import { recordApplicationStageEvent, retrainOutcomeModel } from "@/lib/learning/engine";
 
 const stageRank:Record<string,number>={wishlist:0,applied:1,screening:2,interview:3,offer:4,rejected:5};
 function stageForEvent(type:string){
@@ -110,6 +111,14 @@ export async function syncMailbox(profileId:number,provider:MailProvider){
               :application.nextAction,
             updatedAt:new Date()
           }).where(eq(applications.id,application.id));
+          await recordApplicationStageEvent({
+            profileId,
+            applicationId:application.id,
+            fromStage:application.stage,
+            toStage:targetStage,
+            source:"mailbox",
+            metadata:{eventType:candidate.type,confidence:candidate.confidence,evidence:candidate.evidence}
+          });
         }
       }
 
@@ -133,6 +142,7 @@ export async function syncMailbox(profileId:number,provider:MailProvider){
   await db.update(mailboxConnections).set({
     syncCursor:nextCursor,lastSyncAt:now,lastError:null,updatedAt:now
   }).where(eq(mailboxConnections.id,connection.id));
+  if(events>0)await retrainOutcomeModel(profileId);
 
   return {provider,connectionId:connection.id,discovered:result.messages.length,inserted,updated,events,cursorUpdated:true};
 }

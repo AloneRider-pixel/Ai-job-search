@@ -6,7 +6,6 @@ type Tab="command"|"radar"|"studio"|"tracker";
 type Stage="wishlist"|"applied"|"screening"|"interview"|"offer"|"rejected";
 type Job={id:number;title:string;company:string;location:string|null;description:string;skills?:string[];score:number;postedAt:string|null;applyUrl:string|null};
 type Profile={id:number;name:string;headline:string|null;summary:string|null;skills:string[];targetRoles:string[];targetLocations:string[];location:string|null};
-type Experience={id:number;title:string;company:string;bullets:string[]};
 type Application={id:number;jobId:number;packageId:number|null;stage:Stage;appliedAt:string|null;nextAction:string|null;nextActionAt:string|null;notes:string|null;outcome:string|null};
 type ApplicationRow={application:Application;job:Job;package:any|null};
 type Requirement={id:string;requirement:string;matched:boolean;confidence:number;evidence:{source:string;text:string;score:number}[];gap:string|null};
@@ -15,7 +14,7 @@ type AppPackage={job:{title:string;company:string};score:number;confidence:numbe
 const STAGES:Stage[]=["wishlist","applied","screening","interview","offer","rejected"];
 
 function stageIndex(stage:Stage){return STAGES.indexOf(stage);}
-function niceStage(stage:string){return stage.replace(/_/g," ").replace(/\w/g,c=>c.toUpperCase());}
+function niceStage(stage:string){return stage.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase());}
 
 export default function Home(){
   const [tab,setTab]=useState<Tab>("command");

@@ -42,9 +42,6 @@ export async function resolveCompanyDomain(company:string,metadata:RecordLike,ap
   const hints=["companyDomain","domain","company_domain"].map((key)=>text(metadata[key])).map(cleanDomain).filter(Boolean) as string[];
   if(hints[0])return {domain:hints[0],source:"job_metadata"};
 
-  const hinted=[applyUrl,sourceUrl].map(urlDomain).filter(Boolean) as string[];
-  if(hinted[0])return {domain:hinted[0],source:"job_url"};
-
   if(process.env.HUNTER_API_KEY){
     const response=await fetch("https://api.hunter.io/v2/domain-finder?"+new URLSearchParams({
       company,
@@ -60,6 +57,8 @@ export async function resolveCompanyDomain(company:string,metadata:RecordLike,ap
     if(domain)return {domain,source:"hunter_domain_finder"};
   }
 
+  const hinted=[applyUrl,sourceUrl].map(urlDomain).filter(Boolean) as string[];
+  if(hinted[0])return {domain:hinted[0],source:"job_url"};
   return {domain:null,source:null};
 }
 

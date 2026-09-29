@@ -4,10 +4,11 @@ import { db } from "@/db";
 import { jobs } from "@/db/schema";
 import { getProfileWithExperiences } from "@/lib/repositories";
 import { requireAuth } from "@/lib/auth/guards";
+import { getLearningAdjustment, getOutcomeModel } from "@/lib/learning/engine";
 import { jobUpsertSchema } from "@/lib/validation";
 
-function normalize(value:string){return value.toLowerCase().replace(/[^a-z0-9+#.]/g," ").replace(/\s+/g," ").trim();}
-function scoreJob(title:string,description:string,skills:string[],targetRoles:string[]){
+function normalize(value:string){return value.toLowerCase().replace(/[^a-z0-9+#.]/g," ").replace(/s+/g," ").trim();}
+function baseScoreJob(title:string,description:string,skills:string[],targetRoles:string[]){
   const hay=normalize(title+" "+description);
   const matched=skills.filter(skill=>hay.includes(normalize(skill)));
   const role=targetRoles.length?targetRoles.some(r=>normalize(title).includes(normalize(r))):false;
@@ -20,35 +21,36 @@ export async function GET(req: NextRequest) {
     const current=await requireAuth();
     const profile=await getProfileWithExperiences(current.user.id);
     if(!profile)return Response.json({jobs:[]});
-    const limit = Number(new URL(req.url).searchParams.get("limit") ?? 50);
+    const limit=Number(new URL(req.url).searchParams.get("limit")??50);
     const rows=await db.select().from(jobs).where(eq(jobs.isActive,true)).orderBy(desc(jobs.postedAt)).limit(Math.min(Number.isFinite(limit)?limit:50,100));
-    const scored=rows.map(job=>({
-      ...job,
-      score:scoreJob(job.title,job.description,profile.profile.skills??[],profile.profile.targetRoles??[])
-    })).sort((a,b)=>b.score-a.score);
-    return Response.json({ jobs: scored });
-  } catch (error) {
+    const model=await getOutcomeModel(profile.profile.id);
+
+    const scored=rows.map(job=>{
+      const baseScore=baseScoreJob(job.title,job.description,profile.profile.skills??[],profile.profile.targetRoles??[]);
+      const learned=getLearningAdjustment(model,job,baseScore);
+      return {...job,score:Math.max(0,Math.min(100,baseScore+learned.adjustment)),baseScore,learningAdjustment:learned.adjustment,learningSignals:learned.signals,learningModelVersion:learned.modelVersion};
+    }).sort((a,b)=>b.score-a.score);
+    return Response.json({ jobs:scored, learningModel:model?{version:model.version,sampleCount:model.sampleCount}:null });
+  }catch(error){
     if(error instanceof Response)return error;
-    return Response.json({ error: error instanceof Error ? error.message : "Unable to load jobs." }, { status: 503 });
+    return Response.json({error:error instanceof Error?error.message:"Unable to load jobs."},{status:503});
   }
 }
 
-export async function POST(req: NextRequest) {
-  try {
+export async function POST(req:NextRequest){
+  try{
     await requireAuth();
-    const payload = jobUpsertSchema.parse(await req.json());
-    const existing = await db.select({id:jobs.id}).from(jobs).where(and(eq(jobs.source,payload.source),eq(jobs.externalId,payload.externalId))).limit(1);
+    const payload=jobUpsertSchema.parse(await req.json());
+    const existing=await db.select({id:jobs.id}).from(jobs).where(and(eq(jobs.source,payload.source),eq(jobs.externalId,payload.externalId))).limit(1);
     if(existing[0]){
       const [job]=await db.update(jobs).set({...payload,updatedAt:new Date()}).where(eq(jobs.id,existing[0].id)).returning();
       return Response.json({job});
     }
     const [job]=await db.insert(jobs).values(payload).returning();
     return Response.json({job},{status:201});
-  } catch (error) {
+  }catch(error){
     if(error instanceof Response)return error;
-    if (error && typeof error === "object" && "issues" in error) {
-      return Response.json({ error: "Invalid job payload.", details: (error as { issues: unknown }).issues }, { status: 400 });
-    }
-    return Response.json({ error: error instanceof Error ? error.message : "Unable to save job." }, { status: 503 });
+    if(error&&typeof error==="object"&&"issues" in error)return Response.json({error:"Invalid job payload.",details:(error as {issues:unknown}).issues},{status:400});
+    return Response.json({error:error instanceof Error?error.message:"Unable to save job."},{status:503});
   }
 }

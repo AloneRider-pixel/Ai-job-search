@@ -8,7 +8,8 @@ export async function GET(){
     const {profile}=await requireProfile();
     const connections=await db.select({
       id:mailboxConnections.id,provider:mailboxConnections.provider,accountEmail:mailboxConnections.accountEmail,
-      scopes:mailboxConnections.scopes,lastSyncAt:mailboxConnections.lastSyncAt,status:mailboxConnections.status,lastError:mailboxConnections.lastError
+      scopes:mailboxConnections.scopes,lastSyncAt:mailboxConnections.lastSyncAt,nextSyncAt:mailboxConnections.nextSyncAt,
+      syncFailureCount:mailboxConnections.syncFailureCount,status:mailboxConnections.status,lastError:mailboxConnections.lastError
     }).from(mailboxConnections).where(eq(mailboxConnections.profileId,profile.id));
     return Response.json({connections});
   }catch(error){

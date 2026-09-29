@@ -94,7 +94,7 @@ The product is designed to improve application quality and job-search efficiency
 
 ## Remaining production layers
 
-- Outcome-based job-ranking calibration
+- Continued calibration refinement
 
 ### 6. Resume intelligence + artifacts
 - PDF, DOCX and TXT upload endpoint

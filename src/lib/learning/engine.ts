@@ -78,10 +78,13 @@ async function loadTrainingRows(profileId:number){
     .orderBy(desc(applications.updatedAt));
 }
 
-function aggregate(rows:Awaited<ReturnType<typeof loadTrainingRows>>):LearningModel{
+function aggregate(rows:Awaited<ReturnType<typeof loadTrainingRows>>,stageHistory:Map<number,string[]>):LearningModel{
   const records=rows.map(row=>{
     const stage=row.application.stage;
-    const rank=STAGE_RANK[stage]??0;
+    const history=stageHistory.get(row.application.id)??[];
+    const historicalStages=[...history,stage];
+    const nonRejected=historicalStages.filter(value=>value!=="rejected");
+    const rank=Math.max(0,...nonRejected.map(value=>STAGE_RANK[value]??0));
     const fitScore=row.package?.fitScore??null;
     return {
       roleFamily:roleFamily(row.job.title),
@@ -150,7 +153,20 @@ export async function recordApplicationStageEvent(args:{
 
 export async function retrainOutcomeModel(profileId:number){
   const rows=await loadTrainingRows(profileId);
-  const model=aggregate(rows);
+  const historyRows=await db.select({
+    applicationId:applicationStageEvents.applicationId,
+    toStage:applicationStageEvents.toStage,
+    occurredAt:applicationStageEvents.occurredAt
+  }).from(applicationStageEvents)
+    .where(eq(applicationStageEvents.profileId,profileId))
+    .orderBy(applicationStageEvents.occurredAt);
+  const stageHistory=new Map<number,string[]>();
+  for(const event of historyRows){
+    const list=stageHistory.get(event.applicationId)??[];
+    list.push(event.toStage);
+    stageHistory.set(event.applicationId,list);
+  }
+  const model=aggregate(rows,stageHistory);
   const [existing]=await db.select().from(outcomeLearningModels).where(eq(outcomeLearningModels.profileId,profileId)).limit(1);
   const nextVersion=(existing?.version??0)+1;
   const values={

@@ -205,13 +205,16 @@ export const recruiterContacts = pgTable(
   {
     id: serial("id").primaryKey(),
     profileId: integer("profile_id").references(() => profiles.id, { onDelete: "cascade" }),
+    jobId: integer("job_id").references(() => jobs.id, { onDelete: "set null" }),
     company: varchar("company", { length: 240 }).notNull(),
     name: varchar("name", { length: 180 }),
     role: varchar("role", { length: 180 }),
     profileUrl: text("profile_url"),
     email: varchar("email", { length: 320 }),
     source: varchar("source", { length: 120 }),
+    providerPersonId: varchar("provider_person_id", { length: 160 }),
     verificationState: varchar("verification_state", { length: 40 }).default("unverified").notNull(),
+    approvalState: varchar("approval_state", { length: 40 }).default("candidate").notNull(),
     confidence: integer("confidence").default(0).notNull(),
     lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
     evidence: jsonb("evidence").$type<Record<string, unknown>[]>().default([]).notNull(),
@@ -220,6 +223,8 @@ export const recruiterContacts = pgTable(
   (table) => [
     index("recruiter_contacts_profile_idx").on(table.profileId),
     index("recruiter_contacts_company_idx").on(table.company),
+    index("recruiter_contacts_profile_job_idx").on(table.profileId, table.jobId),
+    index("recruiter_contacts_provider_person_idx").on(table.source, table.providerPersonId),
   ]
 );
 

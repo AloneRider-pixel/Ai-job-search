@@ -95,7 +95,6 @@ The product is designed to improve application quality and job-search efficiency
 ## Remaining production layers
 
 - Outcome-based job-ranking calibration
-- Scheduled mailbox refresh workers
 - Dashboard migration from demo-local state to fully persistent APIs
 
 ### 6. Resume intelligence + artifacts

@@ -93,8 +93,7 @@ The product is designed to improve application quality and job-search efficiency
 
 ## Remaining production layers
 
-- Delta-based mailbox synchronization and scheduled refresh workers
-- Adaptive interview simulator
+- Scheduled mailbox refresh workers
 - Scheduled mailbox refresh workers
 - Outcome-based job-ranking calibration
 - Dashboard migration from demo-local state to fully persistent APIs

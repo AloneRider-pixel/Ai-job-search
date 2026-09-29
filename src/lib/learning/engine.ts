@@ -1,6 +1,7 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { applicationStageEvents, applications, applicationPackages, jobs, outcomeLearningModels } from "@/db/schema";
+import { and } from "drizzle-orm";
 import { trainRankingCalibration } from "@/lib/learning/calibration";
 
 const STAGE_RANK:Record<string,number>={wishlist:0,applied:1,screening:2,interview:3,offer:4,rejected:5};
@@ -74,7 +75,7 @@ async function loadTrainingRows(profileId:number){
   }).from(applications)
     .innerJoin(jobs,eq(applications.jobId,jobs.id))
     .leftJoin(applicationPackages,eq(applications.packageId,applicationPackages.id))
-    .where(eq(applications.profileId,profileId))
+    .where(and(eq(applications.profileId,profileId),ne(applications.stage,"wishlist"),ne(applications.stage,"applied")))
     .orderBy(desc(applications.updatedAt));
 }
 

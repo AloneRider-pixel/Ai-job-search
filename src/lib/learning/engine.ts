@@ -1,6 +1,6 @@
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { applications, applicationPackages, jobs, outcomeLearningModels } from "@/db/schema";
+import { applicationStageEvents, applications, applicationPackages, jobs, outcomeLearningModels } from "@/db/schema";
 
 const STAGE_RANK:Record<string,number>={wishlist:0,applied:1,screening:2,interview:3,offer:4,rejected:5};
 
@@ -126,6 +126,25 @@ function aggregate(rows:Awaited<ReturnType<typeof loadTrainingRows>>):LearningMo
     }
   }
   return {baseline,features:buckets};
+}
+
+export async function recordApplicationStageEvent(args:{
+  profileId:number;
+  applicationId:number;
+  fromStage:string|null;
+  toStage:string;
+  source:"user"|"mailbox"|"system";
+  metadata?:Record<string,unknown>;
+}){
+  const [event]=await db.insert(applicationStageEvents).values({
+    profileId:args.profileId,
+    applicationId:args.applicationId,
+    fromStage:args.fromStage,
+    toStage:args.toStage,
+    source:args.source,
+    metadata:args.metadata??{}
+  }).returning();
+  return event;
 }
 
 export async function retrainOutcomeModel(profileId:number){

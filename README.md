@@ -157,7 +157,7 @@ Job Radar now applies a separate calibrated relevance layer on top of the eviden
 - Calibrates across role family, seniority, package fit band, job source, and work mode.
 - Uses role-family × fit-band interactions when enough observations exist.
 - Applies Beta(2,2) smoothing and reliability weighting to reduce small-sample swings.
-- Requires at least 5 observed applications before calibration changes Job Radar.
+- Requires at least 5 applications with an observed progression or rejection outcome before calibration changes Job Radar.
 - Caps the calibration contribution and keeps the base profile/JD score dominant.
 - Exposes calibration adjustment, confidence, model version, and supporting signals in the jobs API.
 

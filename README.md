@@ -91,15 +91,14 @@ Unknown information remains explicit.
 
 The product is designed to improve application quality and job-search efficiency; it does not guarantee shortlisting.
 
-## Next production integrations
+## Remaining production layers
 
-- Authentication and tenant isolation
-- LLM provider abstraction
-- Resume DOCX/PDF artifact generation
-- Gmail/Outlook mailbox synchronization
 - Delta-based mailbox synchronization and scheduled refresh workers
 - Adaptive interview simulator
 - Outcome-learning ranking model
+- Outcome-based job-ranking calibration
+- Dashboard migration from demo-local state to fully persistent APIs
+
 ### 6. Resume intelligence + artifacts
 - PDF, DOCX and TXT upload endpoint
 - 10 MB upload ceiling

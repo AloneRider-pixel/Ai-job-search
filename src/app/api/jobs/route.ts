@@ -44,10 +44,16 @@ export async function GET(req: NextRequest) {
         calibrationConfidence:calibrated.confidence,
         calibrationSignals:calibrated.signals,
         calibrationModelVersion:calibrated.modelVersion,
-        calibrationIndex:calibrated.calibrationIndex
+        calibrationIndex:calibrated.calibrationIndex,
+        expectedOutcomeIndex:calibrated.expectedOutcomeIndex,
+        expectedOfferRate:calibrated.expectedOfferRate
       };
     }).sort((a,b)=>b.score-a.score);
-    return Response.json({ jobs:scored, learningModel:model?{version:model.version,sampleCount:model.sampleCount}:null, rankingCalibration:calibration?{version:calibration.version,sampleCount:calibration.sampleCount}:null });
+    return Response.json({
+      jobs:scored,
+      learningModel:model?{version:model.version,sampleCount:model.sampleCount}:null,
+      rankingCalibration:calibration?{version:calibration.version,sampleCount:calibration.sampleCount}:null
+    });
   }catch(error){
     if(error instanceof Response)return error;
     return Response.json({error:error instanceof Error?error.message:"Unable to load jobs."},{status:503});

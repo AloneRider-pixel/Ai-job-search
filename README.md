@@ -97,13 +97,9 @@ The product is designed to improve application quality and job-search efficiency
 - LLM provider abstraction
 - Resume DOCX/PDF artifact generation
 - Gmail/Outlook mailbox synchronization
-- Compliant contact enrichment + verification
-- Scheduled job refresh workers
-- Application-event ingestion
+- Delta-based mailbox synchronization and scheduled refresh workers
 - Adaptive interview simulator
 - Outcome-learning ranking model
-
-
 ### 6. Resume intelligence + artifacts
 - PDF, DOCX and TXT upload endpoint
 - 10 MB upload ceiling

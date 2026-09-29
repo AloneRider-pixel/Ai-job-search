@@ -119,6 +119,36 @@ function fallbackEvaluation(question:InterviewQuestionDraft,answer:string):Inter
   };
 }
 
+export async function generateAdaptiveFollowUp(args:{
+  title:string;company:string;jd:string;profile:InterviewProfile;gaps:string[];mode:"mixed"|"technical"|"behavioral"|"system_design";
+  parentQuestion:InterviewQuestionDraft;score:number;
+}) {
+  const targetedGaps=[...args.gaps,...(args.parentQuestion.expectedSignals??[])].filter(Boolean).slice(0,8);
+  if(process.env.OPENAI_API_KEY){
+    try{
+      const result=await buildAIInterviewQuestions({
+        title:args.title,company:args.company,jd:args.jd,profile:args.profile,
+        gaps:targetedGaps,mode:args.mode,questionCount:3
+      });
+      const question=result.data.questions[0];
+      if(question){
+        return {question,model:result.model,mode:"ai" as const};
+      }
+    }catch(error){
+      console.warn("AI adaptive follow-up generation failed; using deterministic follow-up.",error);
+    }
+  }
+  const focus=args.gaps[0]??args.parentQuestion.area;
+  const question:InterviewQuestionDraft={
+    type:args.parentQuestion.type,
+    area:focus,
+    question:"Let’s go one level deeper: your previous answer needs more evidence around "+focus+". Give a concrete step-by-step approach, state one trade-off, and explain how you would validate the result.",
+    expectedSignals:["Step-by-step reasoning","Explicit trade-off","Validation or rollback plan"],
+    evidenceContext:["Follow-up generated from the previous practice answer; it does not add new candidate experience."]
+  };
+  return {question,model:null,mode:"heuristic" as const};
+}
+
 export async function evaluateInterviewAnswer(args:{
   title:string;company:string;question:InterviewQuestionDraft;answer:string;profile:InterviewProfile;
 }) {

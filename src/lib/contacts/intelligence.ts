@@ -1,5 +1,3 @@
-import { normalize } from "node:path";
-
 type RecordLike=Record<string,any>;
 
 export type ContactCandidate={
@@ -120,7 +118,6 @@ const recruiterTitles=[
 
 export async function discoverContacts(input:{
   company:string;
-  jobTitle:string;
   domain:string;
   maxResults:number;
 }):Promise<ContactCandidate[]>{
@@ -149,7 +146,7 @@ export async function discoverContacts(input:{
         }).toString();
         const result=await apolloRequest(enrichUrl,{method:"POST",body:"{}"});
         if(result.person&&typeof result.person==="object")enriched=result.person as RecordLike;
-      }catch(error){
+      }catch{
         // Search results are still useful without enrichment. Preserve the provider evidence.
       }
     }

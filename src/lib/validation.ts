@@ -39,3 +39,5 @@ export const applicationCreateSchema = z.object({
 });
 
 export const applicationUpdateSchema = applicationCreateSchema.partial().omit({ profileId: true, jobId: true });
+
+export const profileUpdateSchema = profileCreateSchema.partial();

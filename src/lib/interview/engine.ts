@@ -65,6 +65,30 @@ function fallbackQuestions(args:{
       evidenceContext:["The skill is an identified application gap; answer as a hypothetical rather than claiming prior experience."]
     });
   }
+  const topUps:InterviewQuestionDraft[]=[
+    {
+      type:"debugging",area:"Debugging",
+      question:"A production feature related to this role starts failing after a deployment. How would you isolate the cause, reduce impact, and verify the fix?",
+      expectedSignals:["Reproduction and isolation","Impact containment","Verification and monitoring"],
+      evidenceContext:["Hypothetical scenario; it does not assume prior production ownership."]
+    },
+    {
+      type:"behavioral",area:"Execution",
+      question:"Describe how you prioritize competing engineering tasks when time is limited. What evidence would you use to make the trade-off?",
+      expectedSignals:["Clear prioritization criteria","Explicit trade-off","Communication or validation"],
+      evidenceContext:["Use only real candidate experience where the question asks for it."]
+    },
+    {
+      type:"system_design",area:"Reliability",
+      question:"Design a small service for this role that must remain reliable during partial failures. What would you monitor and how would you recover?",
+      expectedSignals:["Failure model","Observability","Recovery strategy"],
+      evidenceContext:["Hypothetical design question; it does not assume prior experience."]
+    }
+  ];
+  for(const topUp of topUps){
+    if(questions.length>=3)break;
+    questions.push(topUp);
+  }
   return questions.slice(0,Math.max(3,Math.min(args.questionCount,8)));
 }
 

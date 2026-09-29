@@ -16,10 +16,41 @@ const timestamps = {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 };
 
+export const users = pgTable(
+  "users",
+  {
+    id: serial("id").primaryKey(),
+    email: varchar("email", { length: 320 }).notNull(),
+    name: varchar("name", { length: 160 }).notNull(),
+    passwordHash: text("password_hash").notNull(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("users_email_idx").on(table.email)]
+);
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("sessions_token_hash_idx").on(table.tokenHash),
+    index("sessions_user_idx").on(table.userId),
+    index("sessions_expiry_idx").on(table.expiresAt),
+  ]
+);
+
 export const profiles = pgTable(
   "profiles",
   {
     id: serial("id").primaryKey(),
+    userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
     email: varchar("email", { length: 320 }),
     name: varchar("name", { length: 160 }).notNull(),
     headline: varchar("headline", { length: 240 }),
@@ -31,7 +62,10 @@ export const profiles = pgTable(
     preferences: jsonb("preferences").$type<Record<string, unknown>>().default({}).notNull(),
     ...timestamps,
   },
-  (table) => [uniqueIndex("profiles_email_idx").on(table.email)]
+  (table) => [
+    uniqueIndex("profiles_email_idx").on(table.email),
+    uniqueIndex("profiles_user_idx").on(table.userId),
+  ]
 );
 
 export const profileExperiences = pgTable(
@@ -49,6 +83,24 @@ export const profileExperiences = pgTable(
     ...timestamps,
   },
   (table) => [index("profile_experience_profile_idx").on(table.profileId)]
+);
+
+export const resumeDocuments = pgTable(
+  "resume_documents",
+  {
+    id: serial("id").primaryKey(),
+    profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    filename: varchar("filename", { length: 255 }),
+    sourceType: varchar("source_type", { length: 40 }).default("text").notNull(),
+    rawText: text("raw_text").notNull(),
+    parsedData: jsonb("parsed_data").$type<Record<string, unknown>>().default({}).notNull(),
+    isMaster: boolean("is_master").default(false).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("resume_documents_profile_idx").on(table.profileId),
+    index("resume_documents_master_idx").on(table.profileId, table.isMaster),
+  ]
 );
 
 export const jobs = pgTable(

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 type Job={id:number;title:string;company:string;location:string|null};
+type ApplicationRow={application:{id:number;jobId:number;stage:string};job:{title:string;company:string}};
 type Contact={id:number;jobId:number|null;company:string;name:string|null;role:string|null;profileUrl:string|null;email:string|null;source:string|null;verificationState:string;approvalState:string;confidence:number;lastVerifiedAt:string|null};
 
 function label(value:string){return value.replace(/_/g," ").replace(/\b\w/g,m=>m.toUpperCase());}
@@ -10,14 +11,21 @@ function label(value:string){return value.replace(/_/g," ").replace(/\b\w/g,m=>m
 export default function RecruiterIntelligence(){
   const [jobs,setJobs]=useState<Job[]>([]);
   const [contacts,setContacts]=useState<Contact[]>([]);
+  const [applications,setApplications]=useState<ApplicationRow[]>([]);
   const [jobId,setJobId]=useState("");
+  const [selectedContactId,setSelectedContactId]=useState<number|null>(null);
+  const [selectedApplicationId,setSelectedApplicationId]=useState("");
+  const [outreachSubject,setOutreachSubject]=useState("");
+  const [outreachBody,setOutreachBody]=useState("");
+  const [sending,setSending]=useState(false);
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
 
   async function load(){
-    const [jobsRes,contactsRes]=await Promise.all([fetch("/api/jobs?limit=100"),fetch("/api/contacts")]);
+    const [jobsRes,contactsRes,applicationsRes]=await Promise.all([fetch("/api/jobs?limit=100"),fetch("/api/contacts"),fetch("/api/applications")]);
     if(jobsRes.ok)setJobs((await jobsRes.json()).jobs??[]);
     if(contactsRes.ok)setContacts((await contactsRes.json()).contacts??[]);
+    if(applicationsRes.ok)setApplications((await applicationsRes.json()).applications??[]);
   }
 
   useEffect(()=>{load().catch(()=>setMessage("Unable to load recruiter intelligence."))},[]);
@@ -51,6 +59,38 @@ export default function RecruiterIntelligence(){
   }
 
   const selectedJob=jobs.find(j=>j.id===Number(jobId));
+  const selectedContact=contacts.find(c=>c.id===selectedContactId)??null;
+  const jobApplications=selectedContact?.jobId ? applications.filter(a=>a.application.jobId===selectedContact.jobId) : [];
+
+  function prepareOutreach(contact:Contact){
+    setSelectedContactId(contact.id);
+    const application=applications.find(a=>a.application.jobId===contact.jobId);
+    setSelectedApplicationId(application?String(application.application.id):"");
+    setOutreachSubject("Quick question about "+(contact.jobId?jobs.find(j=>j.id===contact.jobId)?.title??"the role":"the role")+" at "+contact.company);
+    setOutreachBody("Hi "+(contact.name??"there")+",\\n\\nI’m reaching out about the "+(contact.jobId?jobs.find(j=>j.id===contact.jobId)?.title??"role":"role")+" at "+contact.company+". I’d appreciate any guidance on the hiring process or the best way to apply.\\n\\nBest,\\nCandidate");
+  }
+
+  async function sendOutreach(){
+    if(!selectedContact?.email||selectedContact.verificationState!=="verified"||selectedContact.approvalState!=="approved"){
+      setMessage("Select an approved contact with a verified email first.");return;
+    }
+    if(!outreachSubject.trim()||!outreachBody.trim()){setMessage("Add a subject and message before sending.");return;}
+    if(!window.confirm("Send this email to "+selectedContact.email+"?"))return;
+    setSending(true);
+    try{
+      const res=await fetch("/api/outreach/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        contactId:selectedContact.id,
+        applicationId:selectedApplicationId?Number(selectedApplicationId):null,
+        subject:outreachSubject.trim(),
+        body:outreachBody.trim(),
+        confirm:true
+      })});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error??"Email send failed.");
+      setMessage("Outreach sent through "+data.provider+".");
+    }catch(error){setMessage(error instanceof Error?error.message:"Email send failed.");}
+    finally{setSending(false);}
+  }
 
   return <main style={{maxWidth:1100,margin:"0 auto",padding:"38px 22px"}}>
     <div className="row between"><div><div className="kicker">recruiter intelligence</div><h1>Discover the right contact.</h1><p className="sub">Find current recruiting or hiring-side contacts for a specific job, preserve provider evidence, and require human approval before outreach.</p></div><div className="row"><a className="btn" href="/inbox">Inbox</a><a className="btn" href="/">Dashboard</a></div></div>
@@ -80,10 +120,31 @@ export default function RecruiterIntelligence(){
         </div>
         <div className="row between" style={{marginTop:12}}>
           <div className="small muted">Source: {c.source??"unknown"} · confidence is evidence-weighted, not a hiring prediction.</div>
-          <div className="row">{c.email&&c.verificationState!=="verified"&&<button className="btn" onClick={()=>verify(c.id)}>Re-check email</button>}{c.approvalState!=="approved"&&<button className="btn primary" onClick={()=>act(c.id,"approve")}>Approve</button>}{c.approvalState!=="rejected"&&<button className="btn" onClick={()=>act(c.id,"reject")}>Reject</button>}</div>
+          <div className="row">{c.email&&c.verificationState!=="verified"&&<button className="btn" onClick={()=>verify(c.id)}>Re-check email</button>}{c.approvalState==="approved"&&c.verificationState==="verified"&&c.email&&<button className="btn primary" onClick={()=>prepareOutreach(c)}>Use for outreach</button>}{c.approvalState!=="approved"&&<button className="btn primary" onClick={()=>act(c.id,"approve")}>Approve</button>}{c.approvalState!=="rejected"&&<button className="btn" onClick={()=>act(c.id,"reject")}>Reject</button>}</div>
         </div>
       </div>)}
     </div>
+
+    {selectedContact&&selectedContact.approvalState==="approved"&&selectedContact.verificationState==="verified"&&selectedContact.email&&<div className="card" style={{marginTop:14}}>
+      <div className="row between"><div><div className="mono">OUTREACH COMPOSER</div><h2 style={{marginTop:5}}>Send to {selectedContact.name??selectedContact.email}</h2></div><span className="chip ok">verified + approved</span></div>
+      <div className="grid grid2" style={{marginTop:12}}>
+        <div>
+          <div className="mono">APPLICATION</div>
+          <select className="field" style={{marginTop:8}} value={selectedApplicationId} onChange={e=>setSelectedApplicationId(e.target.value)}>
+            <option value="">No application link</option>
+            {jobApplications.map(a=><option key={a.application.id} value={a.application.id}>{a.job.title} · {a.application.stage}</option>)}
+          </select>
+        </div>
+        <div>
+          <div className="mono">RECIPIENT</div>
+          <div className="small" style={{marginTop:10}}>{selectedContact.email}</div>
+          {selectedContact.profileUrl&&<a className="small" href={selectedContact.profileUrl} target="_blank" rel="noreferrer">Open professional profile ↗</a>}
+        </div>
+      </div>
+      <input className="field" style={{marginTop:12}} value={outreachSubject} onChange={e=>setOutreachSubject(e.target.value)} placeholder="Subject"/>
+      <textarea className="field" style={{marginTop:10,minHeight:180}} value={outreachBody} onChange={e=>setOutreachBody(e.target.value)} placeholder="Write a personalized message…"/>
+      <div className="row between" style={{marginTop:10}}><span className="small muted">Sending requires a final browser confirmation and a connected Gmail/Outlook mailbox.</span><button className="btn primary" disabled={sending} onClick={sendOutreach}>{sending?"Sending…":"Send email"}</button></div>
+    </div>}
 
     <div className="card" style={{marginTop:14}}><div className="mono">OUTREACH GATE</div><h2 style={{marginTop:5}}>Verified + approved only</h2><p className="sub">A discovered contact can provide a LinkedIn profile and/or email, but the send path still requires a verified email and explicit approval. Provider records are stored as evidence so stale or mismatched identities can be reviewed before contacting anyone.</p></div>
   </main>;

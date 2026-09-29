@@ -35,6 +35,14 @@ export default function RecruiterIntelligence(){
     finally{setBusy(false);}
   }
 
+  async function verify(id:number){
+    const res=await fetch("/api/contacts/"+id+"/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirm:true})});
+    const data=await res.json();
+    if(!res.ok){setMessage(data.error??"Unable to verify email.");return;}
+    setContacts(xs=>xs.map(c=>c.id===id?data.contact:c));
+    setMessage("Email verification: "+(data.verification?.status??"unknown")+".");
+  }
+
   async function act(id:number,action:"approve"|"reject"){
     const res=await fetch("/api/contacts/"+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action})});
     const data=await res.json();
@@ -72,7 +80,7 @@ export default function RecruiterIntelligence(){
         </div>
         <div className="row between" style={{marginTop:12}}>
           <div className="small muted">Source: {c.source??"unknown"} · confidence is evidence-weighted, not a hiring prediction.</div>
-          <div className="row">{c.approvalState!=="approved"&&<button className="btn primary" onClick={()=>act(c.id,"approve")}>Approve</button>}{c.approvalState!=="rejected"&&<button className="btn" onClick={()=>act(c.id,"reject")}>Reject</button>}</div>
+          <div className="row">{c.email&&c.verificationState!=="verified"&&<button className="btn" onClick={()=>verify(c.id)}>Re-check email</button>}{c.approvalState!=="approved"&&<button className="btn primary" onClick={()=>act(c.id,"approve")}>Approve</button>}{c.approvalState!=="rejected"&&<button className="btn" onClick={()=>act(c.id,"reject")}>Reject</button>}</div>
         </div>
       </div>)}
     </div>

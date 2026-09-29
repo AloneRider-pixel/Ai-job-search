@@ -204,6 +204,7 @@ export const recruiterContacts = pgTable(
   "recruiter_contacts",
   {
     id: serial("id").primaryKey(),
+    profileId: integer("profile_id").references(() => profiles.id, { onDelete: "cascade" }),
     company: varchar("company", { length: 240 }).notNull(),
     name: varchar("name", { length: 180 }),
     role: varchar("role", { length: 180 }),
@@ -216,7 +217,115 @@ export const recruiterContacts = pgTable(
     evidence: jsonb("evidence").$type<Record<string, unknown>[]>().default([]).notNull(),
     ...timestamps,
   },
-  (table) => [index("recruiter_contacts_company_idx").on(table.company)]
+  (table) => [
+    index("recruiter_contacts_profile_idx").on(table.profileId),
+    index("recruiter_contacts_company_idx").on(table.company),
+  ]
+);
+
+export const mailboxConnections = pgTable(
+  "mailbox_connections",
+  {
+    id: serial("id").primaryKey(),
+    profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 40 }).notNull(),
+    providerAccountId: varchar("provider_account_id", { length: 320 }).notNull(),
+    accountEmail: varchar("account_email", { length: 320 }).notNull(),
+    accessTokenEncrypted: text("access_token_encrypted").notNull(),
+    refreshTokenEncrypted: text("refresh_token_encrypted"),
+    tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
+    scopes: jsonb("scopes").$type<string[]>().default([]).notNull(),
+    syncCursor: text("sync_cursor"),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    status: varchar("status", { length: 40 }).default("connected").notNull(),
+    lastError: text("last_error"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("mailbox_connections_profile_provider_account_idx").on(table.profileId, table.provider, table.providerAccountId),
+    index("mailbox_connections_profile_idx").on(table.profileId),
+  ]
+);
+
+export const oauthStates = pgTable(
+  "oauth_states",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 40 }).notNull(),
+    stateHash: varchar("state_hash", { length: 64 }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("oauth_states_hash_idx").on(table.stateHash),
+    index("oauth_states_user_idx").on(table.userId),
+    index("oauth_states_expiry_idx").on(table.expiresAt),
+  ]
+);
+
+export const emailMessages = pgTable(
+  "email_messages",
+  {
+    id: serial("id").primaryKey(),
+    profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    connectionId: integer("connection_id").notNull().references(() => mailboxConnections.id, { onDelete: "cascade" }),
+    providerMessageId: varchar("provider_message_id", { length: 320 }).notNull(),
+    threadId: varchar("thread_id", { length: 320 }),
+    direction: varchar("direction", { length: 20 }).notNull(),
+    subject: text("subject"),
+    fromEmail: varchar("from_email", { length: 320 }),
+    toEmails: jsonb("to_emails").$type<string[]>().default([]).notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    snippet: text("snippet"),
+    bodyText: text("body_text"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("email_messages_connection_provider_id_idx").on(table.connectionId, table.providerMessageId),
+    index("email_messages_profile_received_idx").on(table.profileId, table.receivedAt),
+    index("email_messages_profile_thread_idx").on(table.profileId, table.threadId),
+  ]
+);
+
+export const applicationEvents = pgTable(
+  "application_events",
+  {
+    id: serial("id").primaryKey(),
+    profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    applicationId: integer("application_id").references(() => applications.id, { onDelete: "set null" }),
+    messageId: integer("message_id").notNull().references(() => emailMessages.id, { onDelete: "cascade" }),
+    eventType: varchar("event_type", { length: 60 }).notNull(),
+    confidence: integer("confidence").notNull(),
+    evidence: jsonb("evidence").$type<string[]>().default([]).notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("application_events_message_type_idx").on(table.messageId, table.eventType),
+    index("application_events_profile_time_idx").on(table.profileId, table.occurredAt),
+  ]
+);
+
+export const outreachSequences = pgTable(
+  "outreach_sequences",
+  {
+    id: serial("id").primaryKey(),
+    profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    applicationId: integer("application_id").references(() => applications.id, { onDelete: "cascade" }),
+    status: varchar("status", { length: 40 }).default("draft").notNull(),
+    currentStep: integer("current_step").default(0).notNull(),
+    nextActionAt: timestamp("next_action_at", { withTimezone: true }),
+    stopReason: text("stop_reason"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("outreach_sequences_profile_application_idx").on(table.profileId, table.applicationId),
+    index("outreach_sequences_due_idx").on(table.status, table.nextActionAt),
+  ]
 );
 
 export const outreachMessages = pgTable(

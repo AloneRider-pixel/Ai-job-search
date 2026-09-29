@@ -119,3 +119,10 @@ The product is designed to improve application quality and job-search efficiency
 - Raw-text export fallback for arbitrary uploaded layouts
 
 The PDF parser follows the current `pdf-parse` API and releases, while DOCX extraction uses Mammoth's documented `extractRawText` API. citeturn975333search0turn194865search0
+
+
+## Communication intelligence layer
+
+The mailbox layer supports Gmail and Microsoft Graph authorization, encrypted token storage, mailbox synchronization, normalized email storage, application-event detection, application-stage updates, follow-up stopping, and explicit outbound email approval.
+
+Google's server-side OAuth guidance uses an authorization code flow with offline access for background mailbox access; Microsoft documents the OAuth authorization-code flow with delegated Graph permissions. Gmail message listing exposes message/thread identifiers, and Graph supports delta-query change tracking for later incremental synchronization. See the official provider documentation. 

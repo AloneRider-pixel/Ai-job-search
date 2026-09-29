@@ -261,15 +261,24 @@ export function getCalibrationAdjustment(
   ] as const;
 
   const evidence:Array<{name:string;stat:CalibrationStat}>=[];
+  function normalizeStoredStat(value:CalibrationStat|undefined):CalibrationStat|null{
+    if(!value)return null;
+    const effectiveN=value.effectiveN??value.n??0;
+    const freshness=value.freshness??1;
+    const uncertainty=value.uncertainty??Math.sqrt(Math.max((value.outcomeIndex??.5)*(1-(value.outcomeIndex??.5)),0)/(effectiveN+4));
+    const reliability=value.reliability??clamp((value.n??0)/12,0,1);
+    return {...value,effectiveN,freshness,uncertainty,reliability};
+  }
+
   for(const [kind,key] of keys){
-    const stat=stored.featureStats?.[kind]?.[key];
+    const stat=normalizeStoredStat(stored.featureStats?.[kind]?.[key]);
     if(stat&&stat.n>=3&&stat.effectiveN>=MIN_EFFECTIVE_SAMPLES)evidence.push({
       name:kind+":"+key,stat
     });
   }
 
   const interactionKey=roleFamily(job.title)+"|"+fitBand(baseScore);
-  const interaction=stored.interactions?.[interactionKey];
+  const interaction=normalizeStoredStat(stored.interactions?.[interactionKey]);
   const usableInteraction=interaction&&interaction.n>=3&&interaction.effectiveN>=MIN_EFFECTIVE_SAMPLES?interaction:null;
 
   const evidenceWeights=evidence.map(x=>{

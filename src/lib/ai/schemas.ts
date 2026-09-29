@@ -29,6 +29,66 @@ export const applicationPackageSchema = z.object({
   nextActions:z.array(z.string().max(700)).max(10)
 });
 
+
+export const interviewQuestionSetSchema = z.object({
+  questions: z.array(z.object({
+    type: z.enum(["technical","system_design","debugging","behavioral","situational"]),
+    area: z.string().min(1).max(160),
+    question: z.string().min(10).max(900),
+    expectedSignals: z.array(z.string().max(400)).max(8),
+    evidenceContext: z.array(z.string().max(700)).max(4)
+  })).min(3).max(8)
+});
+
+export const interviewQuestionSetJsonSchema = {
+  type:"object",additionalProperties:false,required:["questions"],
+  properties:{
+    questions:{type:"array",minItems:3,maxItems:8,items:{type:"object",additionalProperties:false,required:["type","area","question","expectedSignals","evidenceContext"],properties:{
+      type:{type:"string",enum:["technical","system_design","debugging","behavioral","situational"]},
+      area:{type:"string"},
+      question:{type:"string"},
+      expectedSignals:{type:"array",items:{type:"string"},maxItems:8},
+      evidenceContext:{type:"array",items:{type:"string"},maxItems:4}
+    }}}
+  }
+} as const;
+
+export const interviewEvaluationSchema = z.object({
+  score: z.number().int().min(0).max(100),
+  confidence: z.number().int().min(0).max(100),
+  verdict: z.enum(["strong","solid","mixed","weak","insufficient"]),
+  strengths: z.array(z.string().max(500)).max(6),
+  gaps: z.array(z.string().max(500)).max(6),
+  feedback: z.string().max(1800),
+  coveredSignals: z.array(z.string().max(400)).max(8),
+  rubric: z.object({
+    correctness: z.number().int().min(0).max(100),
+    depth: z.number().int().min(0).max(100),
+    relevance: z.number().int().min(0).max(100),
+    communication: z.number().int().min(0).max(100)
+  })
+});
+
+export const interviewEvaluationJsonSchema = {
+  type:"object",additionalProperties:false,
+  required:["score","confidence","verdict","strengths","gaps","feedback","coveredSignals","rubric"],
+  properties:{
+    score:{type:"integer",minimum:0,maximum:100},
+    confidence:{type:"integer",minimum:0,maximum:100},
+    verdict:{type:"string",enum:["strong","solid","mixed","weak","insufficient"]},
+    strengths:{type:"array",items:{type:"string"},maxItems:6},
+    gaps:{type:"array",items:{type:"string"},maxItems:6},
+    feedback:{type:"string"},
+    coveredSignals:{type:"array",items:{type:"string"},maxItems:8},
+    rubric:{type:"object",additionalProperties:false,required:["correctness","depth","relevance","communication"],properties:{
+      correctness:{type:"integer",minimum:0,maximum:100},
+      depth:{type:"integer",minimum:0,maximum:100},
+      relevance:{type:"integer",minimum:0,maximum:100},
+      communication:{type:"integer",minimum:0,maximum:100}
+    }}
+  }
+} as const;
+
 export type ApplicationPackageAI=z.infer<typeof applicationPackageSchema>;
 
 export const applicationPackageJsonSchema={

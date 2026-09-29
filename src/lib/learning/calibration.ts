@@ -163,7 +163,7 @@ export async function trainRankingCalibration(profileId:number){
     interactions,
     methodology:{
       version:"calibration-v1",
-      minimumSamples:3,
+      minimumSamples:5,
       smoothing:"Beta(2,2) prior on each observed milestone",
       baseWeight:.78,
       calibrationWeight:.22,

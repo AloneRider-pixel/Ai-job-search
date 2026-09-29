@@ -55,6 +55,7 @@ Create `.env.local`:
 ```bash
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB
 DB_POOL_MAX=10
+CAREEROS_WORKER_SECRET=generate-a-long-random-secret
 ```
 
 Then:
@@ -93,9 +94,8 @@ The product is designed to improve application quality and job-search efficiency
 
 ## Remaining production layers
 
-- Scheduled mailbox refresh workers
-- Scheduled mailbox refresh workers
 - Outcome-based job-ranking calibration
+- Scheduled mailbox refresh workers
 - Dashboard migration from demo-local state to fully persistent APIs
 
 ### 6. Resume intelligence + artifacts
@@ -149,6 +149,25 @@ The dashboard now reads profile, jobs, applications and generated packages throu
 
 Mailbox synchronization now uses provider-native change cursors: Gmail stores a mailbox `historyId`, while Microsoft Graph stores separate Inbox and Sent Items delta links. Microsoft Graph delta returns opaque `@odata.nextLink` and `@odata.deltaLink` state URLs; Gmail's `history.list` returns changes after a stored `startHistoryId`. These cursors allow later syncs to request changes rather than repeatedly scanning the recent mailbox. citeturn935138search1turn474597search0
 
+
+
+## Mailbox AutomationOS
+
+Connected mailboxes now participate in a durable scheduled refresh loop:
+- Provider-native incremental cursors are reused by the scheduled worker.
+- Each connection has `nextSyncAt`, failure count, and a short lease to prevent duplicate work.
+- Successful syncs schedule the next refresh for 15 minutes later.
+- Failures use exponential backoff from 5 minutes up to 6 hours without disconnecting the mailbox.
+- The protected worker endpoint is `POST /api/workers/mailbox-refresh` and requires the `x-careeros-worker-secret` header.
+- GitHub Actions runs the worker every 15 minutes and also supports manual dispatch.
+
+Required GitHub Actions secrets:
+```text
+CAREEROS_BASE_URL=https://your-deployed-careeros-host
+CAREEROS_WORKER_SECRET=the-same-secret-used-by-the-app
+```
+
+The scheduler orchestrates existing Gmail history and Microsoft Graph delta synchronization; it does not replace those provider-native cursors or rescan the mailbox on every run.
 
 ## Adaptive InterviewOS
 

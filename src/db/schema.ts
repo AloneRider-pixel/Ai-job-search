@@ -396,6 +396,24 @@ export const outcomeLearningModels = pgTable(
 );
 
 
+
+export const rankingCalibrations = pgTable(
+  "ranking_calibrations",
+  {
+    id: serial("id").primaryKey(),
+    profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    version: integer("version").default(1).notNull(),
+    sampleCount: integer("sample_count").default(0).notNull(),
+    baseline: jsonb("baseline").$type<Record<string, unknown>>().default({}).notNull(),
+    featureStats: jsonb("feature_stats").$type<Record<string, unknown>>().default({}).notNull(),
+    interactions: jsonb("interactions").$type<Record<string, unknown>>().default({}).notNull(),
+    methodology: jsonb("methodology").$type<Record<string, unknown>>().default({}).notNull(),
+    trainedAt: timestamp("trained_at", { withTimezone: true }).defaultNow().notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("ranking_calibrations_profile_idx").on(table.profileId)]
+);
+
 export const interviewSessions = pgTable(
   "interview_sessions",
   {

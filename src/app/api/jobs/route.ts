@@ -5,6 +5,7 @@ import { jobs } from "@/db/schema";
 import { getProfileWithExperiences } from "@/lib/repositories";
 import { requireAuth } from "@/lib/auth/guards";
 import { getLearningAdjustment, getOutcomeModel } from "@/lib/learning/engine";
+import { getCalibrationAdjustment, getRankingCalibration } from "@/lib/learning/calibration";
 import { jobUpsertSchema } from "@/lib/validation";
 
 function normalize(value:string){return value.toLowerCase().replace(/[^a-z0-9+#.]/g," ").replace(/\s+/g," ").trim();}
@@ -23,14 +24,30 @@ export async function GET(req: NextRequest) {
     if(!profile)return Response.json({jobs:[]});
     const limit=Number(new URL(req.url).searchParams.get("limit")??50);
     const rows=await db.select().from(jobs).where(eq(jobs.isActive,true)).orderBy(desc(jobs.postedAt)).limit(Math.min(Number.isFinite(limit)?limit:50,100));
-    const model=await getOutcomeModel(profile.profile.id);
+    const [model,calibration]=await Promise.all([
+      getOutcomeModel(profile.profile.id),
+      getRankingCalibration(profile.profile.id)
+    ]);
 
     const scored=rows.map(job=>{
       const baseScore=baseScoreJob(job.title,job.description,profile.profile.skills??[],profile.profile.targetRoles??[]);
       const learned=getLearningAdjustment(model,job,baseScore);
-      return {...job,score:Math.max(0,Math.min(100,baseScore+learned.adjustment)),baseScore,learningAdjustment:learned.adjustment,learningSignals:learned.signals,learningModelVersion:learned.modelVersion};
+      const calibrated=getCalibrationAdjustment(calibration,job,baseScore);
+      return {
+        ...job,
+        score:calibrated.calibratedScore,
+        baseScore,
+        learningAdjustment:learned.adjustment,
+        learningSignals:learned.signals,
+        learningModelVersion:learned.modelVersion,
+        calibrationAdjustment:calibrated.adjustment,
+        calibrationConfidence:calibrated.confidence,
+        calibrationSignals:calibrated.signals,
+        calibrationModelVersion:calibrated.modelVersion,
+        calibrationIndex:calibrated.calibrationIndex
+      };
     }).sort((a,b)=>b.score-a.score);
-    return Response.json({ jobs:scored, learningModel:model?{version:model.version,sampleCount:model.sampleCount}:null });
+    return Response.json({ jobs:scored, learningModel:model?{version:model.version,sampleCount:model.sampleCount}:null, rankingCalibration:calibration?{version:calibration.version,sampleCount:calibration.sampleCount}:null });
   }catch(error){
     if(error instanceof Response)return error;
     return Response.json({error:error instanceof Error?error.message:"Unable to load jobs."},{status:503});

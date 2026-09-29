@@ -30,7 +30,6 @@ export async function POST(req:NextRequest){
 
     const candidates=await discoverContacts({
       company:job.company,
-      jobTitle:job.title,
       domain:domainResult.domain,
       maxResults:payload.maxResults
     });

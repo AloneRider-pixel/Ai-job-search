@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { applicationStageEvents, applications, applicationPackages, jobs, outcomeLearningModels } from "@/db/schema";
+import { trainRankingCalibration } from "@/lib/learning/calibration";
 
 const STAGE_RANK:Record<string,number>={wishlist:0,applied:1,screening:2,interview:3,offer:4,rejected:5};
 
@@ -156,11 +157,13 @@ export async function retrainOutcomeModel(profileId:number){
     profileId,version:nextVersion,sampleCount:rows.length,
     baseline:model.baseline,featureStats:model.features,trainedAt:new Date(),updatedAt:new Date()
   };
+  let saved;
   if(existing){
-    const [saved]=await db.update(outcomeLearningModels).set(values).where(eq(outcomeLearningModels.id,existing.id)).returning();
-    return saved;
+    [saved]=await db.update(outcomeLearningModels).set(values).where(eq(outcomeLearningModels.id,existing.id)).returning();
+  }else{
+    [saved]=await db.insert(outcomeLearningModels).values(values).returning();
   }
-  const [saved]=await db.insert(outcomeLearningModels).values(values).returning();
+  await trainRankingCalibration(profileId);
   return saved;
 }
 

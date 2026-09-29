@@ -47,6 +47,9 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{provider:str
       scopes:identity.scopes,
       status:"connected",
       lastError:null,
+      nextSyncAt:new Date(),
+      syncFailureCount:0,
+      syncLeaseUntil:null,
       updatedAt:new Date()
     };
 

@@ -102,3 +102,20 @@ The product is designed to improve application quality and job-search efficiency
 - Application-event ingestion
 - Adaptive interview simulator
 - Outcome-learning ranking model
+
+
+### 6. Resume intelligence + artifacts
+- PDF, DOCX and TXT upload endpoint
+- 10 MB upload ceiling
+- PDF text extraction with `pdf-parse`
+- DOCX raw-text extraction with Mammoth
+- SHA-256 document fingerprinting and idempotent duplicate handling
+- Observable parser warnings for scanned/image-only PDFs
+- Candidate fact extraction without inventing experience
+- Private Resume Vault UI
+- Resume source history
+- On-demand ATS-friendly DOCX export
+- On-demand PDF export
+- Raw-text export fallback for arbitrary uploaded layouts
+
+The PDF parser follows the current `pdf-parse` API and releases, while DOCX extraction uses Mammoth's documented `extractRawText` API. citeturn975333search0turn194865search0

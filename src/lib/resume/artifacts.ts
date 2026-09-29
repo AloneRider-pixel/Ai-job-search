@@ -60,6 +60,38 @@ export function resumeModelFromText(text: string): ResumeModel {
   return { name, title, contact, summary, skills, experience };
 }
 
+export async function generateDocxFromText(text: string) {
+  const paragraphs = text.split(/\n+/).map(line => line.trim()).filter(Boolean).map(line => new Paragraph({ text: line }));
+  const doc = new Document({
+    creator: "CareerOS",
+    title: "Resume",
+    sections: [{ properties: {}, children: paragraphs }],
+  });
+  return Buffer.from(await Packer.toBuffer(doc));
+}
+
+export async function generatePdfFromText(text: string) {
+  const pdf = await PDFDocument.create();
+  pdf.setTitle("Resume");
+  pdf.setAuthor("CareerOS");
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const A4: [number, number] = [595.28, 841.89];
+  let page = pdf.addPage(A4);
+  let y = 800;
+  const margin = 42;
+  const ensurePage = (amount: number) => { if (y - amount < 48) { page = pdf.addPage(A4); y = 800; } };
+  for (const rawLine of text.split(/\n+/)) {
+    const line = rawLine.trim();
+    if (!line) { y -= 7; continue; }
+    for (const wrapped of splitLongLine(line, 95)) {
+      ensurePage(14);
+      page.drawText(wrapped, { x: margin, y, size: 9.5, font, color: rgb(0.08,0.1,0.09) });
+      y -= 13;
+    }
+  }
+  return Buffer.from(await pdf.save());
+}
+
 export async function generateDocx(resume: ResumeModel) {
   const children: Paragraph[] = [
     new Paragraph({ children: [new TextRun({ text: resume.name, bold: true, size: 30 })], spacing: { after: 70 } }),

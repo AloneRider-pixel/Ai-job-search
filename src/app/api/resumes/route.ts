@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { profiles, resumeDocuments } from "@/db/schema";
@@ -42,6 +42,10 @@ export async function POST(req:NextRequest){
     }
 
     const facts=extractResumeFacts(rawText);
+    const [existing]=await db.select().from(resumeDocuments).where(and(eq(resumeDocuments.profileId,profile.id),eq(resumeDocuments.fileHash,fileHash))).limit(1);
+    if(existing){
+      return Response.json({document:existing,facts,duplicate:true,warnings},{status:200});
+    }
     const [document]=await db.insert(resumeDocuments).values({
       profileId:profile.id,filename,sourceType,mimeType,fileHash,rawText,
       parsedData:{...facts,mimeType,warnings,parser:"resume-ingestion-v2"},

@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { applicationStageEvents, applications, jobs } from "@/db/schema";
 import { getProfileWithExperiences } from "@/lib/repositories";

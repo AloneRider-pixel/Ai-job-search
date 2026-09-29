@@ -8,7 +8,7 @@ type Summary={applications:number;screening:number;interview:number;offers:numbe
 type Transition={id:number;applicationId:number;jobTitle:string;company:string;fromStage:string|null;toStage:string;source:string;occurredAt:string};
 
 function pct(value:number){return Math.round(value*100);}
-function label(value:string){return value.replace(/_/g," ").replace(/w/g,c=>c.toUpperCase());}
+function label(value:string){return value.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase());}
 
 export default function LearningPage(){
   const [model,setModel]=useState<Model|null>(null);

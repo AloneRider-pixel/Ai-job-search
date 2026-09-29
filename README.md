@@ -149,6 +149,20 @@ Mailbox synchronization now uses provider-native change cursors: Gmail stores a 
 
 
 
+
+## Outcome-Based Ranking Calibration
+
+Job Radar now applies a separate calibrated relevance layer on top of the evidence-based base score:
+- Learns from observed application funnel depth using stage history rather than treating every rejection as an offer-stage record.
+- Calibrates across role family, seniority, package fit band, job source, and work mode.
+- Uses role-family × fit-band interactions when enough observations exist.
+- Applies Beta(2,2) smoothing and reliability weighting to reduce small-sample swings.
+- Requires at least 5 observed applications before calibration changes Job Radar.
+- Caps the calibration contribution and keeps the base profile/JD score dominant.
+- Exposes calibration adjustment, confidence, model version, and supporting signals in the jobs API.
+
+This is an empirical personalization layer based on the user's observed workflow. It is not a forecast of an employer's decision.
+
 ## Mailbox AutomationOS
 
 Connected mailboxes now participate in a durable scheduled refresh loop:

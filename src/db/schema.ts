@@ -92,12 +92,15 @@ export const resumeDocuments = pgTable(
     profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
     filename: varchar("filename", { length: 255 }),
     sourceType: varchar("source_type", { length: 40 }).default("text").notNull(),
+    mimeType: varchar("mime_type", { length: 160 }),
+    fileHash: varchar("file_hash", { length: 64 }).notNull(),
     rawText: text("raw_text").notNull(),
     parsedData: jsonb("parsed_data").$type<Record<string, unknown>>().default({}).notNull(),
     isMaster: boolean("is_master").default(false).notNull(),
     ...timestamps,
   },
   (table) => [
+    uniqueIndex("resume_documents_profile_hash_idx").on(table.profileId, table.fileHash),
     index("resume_documents_profile_idx").on(table.profileId),
     index("resume_documents_master_idx").on(table.profileId, table.isMaster),
   ]

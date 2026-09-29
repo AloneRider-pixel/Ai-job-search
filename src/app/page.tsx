@@ -50,7 +50,7 @@ export default function Home(){
   }
 
   return <div className="shell">
-    <header className="topbar"><div className="topbar-inner"><div className="brand"><span className="brand-mark">◎</span><span>Career<span style={{color:"var(--lime)"}}>OS</span></span></div><span className="badge">Evidence-Backed Application OS</span></div></header>
+    <header className="topbar"><div className="topbar-inner"><div className="brand"><span className="brand-mark">◎</span><span>Career<span style={{color:"var(--lime)"}}>OS</span></span></div><div className="row"><a className="btn" href="/resumes">Resume Vault</a><span className="badge">Evidence-Backed Application OS</span></div></div></header>
     <div className="layout">
       <aside className="sidebar"><nav className="nav">
         {([["command","Command Center"],["radar","Job Radar"],["studio","Application Studio"],["tracker","Application Tracker"]] as const).map(function(item){return <button key={item[0]} className={tab===item[0]?"active":""} onClick={function(){setTab(item[0])}}>{item[1]}</button>})}

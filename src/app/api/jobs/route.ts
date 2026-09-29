@@ -7,7 +7,7 @@ import { requireAuth } from "@/lib/auth/guards";
 import { getLearningAdjustment, getOutcomeModel } from "@/lib/learning/engine";
 import { jobUpsertSchema } from "@/lib/validation";
 
-function normalize(value:string){return value.toLowerCase().replace(/[^a-z0-9+#.]/g," ").replace(/\\s+/g," ").trim();}
+function normalize(value:string){return value.toLowerCase().replace(/[^a-z0-9+#.]/g," ").replace(/\s+/g," ").trim();}
 function baseScoreJob(title:string,description:string,skills:string[],targetRoles:string[]){
   const hay=normalize(title+" "+description);
   const matched=skills.filter(skill=>hay.includes(normalize(skill)));

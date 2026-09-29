@@ -392,6 +392,81 @@ export const outcomeLearningModels = pgTable(
   ]
 );
 
+
+export const interviewSessions = pgTable(
+  "interview_sessions",
+  {
+    id: serial("id").primaryKey(),
+    profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    jobId: integer("job_id").notNull().references(() => jobs.id, { onDelete: "cascade" }),
+    applicationId: integer("application_id").references(() => applications.id, { onDelete: "set null" }),
+    packageId: integer("package_id").references(() => applicationPackages.id, { onDelete: "set null" }),
+    status: varchar("status", { length: 40 }).default("active").notNull(),
+    mode: varchar("mode", { length: 40 }).default("mixed").notNull(),
+    questionCount: integer("question_count").default(0).notNull(),
+    answeredCount: integer("answered_count").default(0).notNull(),
+    overallScore: integer("overall_score"),
+    readinessScore: integer("readiness_score"),
+    summary: text("summary"),
+    strengths: jsonb("strengths").$type<string[]>().default([]).notNull(),
+    gaps: jsonb("gaps").$type<string[]>().default([]).notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("interview_sessions_profile_idx").on(table.profileId, table.createdAt),
+    index("interview_sessions_profile_job_idx").on(table.profileId, table.jobId, table.createdAt),
+  ]
+);
+
+export const interviewQuestions = pgTable(
+  "interview_questions",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: integer("session_id").notNull().references(() => interviewSessions.id, { onDelete: "cascade" }),
+    sequence: integer("sequence").notNull(),
+    type: varchar("type", { length: 40 }).notNull(),
+    area: varchar("area", { length: 160 }).notNull(),
+    question: text("question").notNull(),
+    expectedSignals: jsonb("expected_signals").$type<string[]>().default([]).notNull(),
+    evidenceContext: jsonb("evidence_context").$type<string[]>().default([]).notNull(),
+    isFollowUp: boolean("is_follow_up").default(false).notNull(),
+    parentQuestionId: integer("parent_question_id"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("interview_questions_session_sequence_idx").on(table.sessionId, table.sequence),
+    index("interview_questions_session_idx").on(table.sessionId, table.sequence),
+  ]
+);
+
+export const interviewAnswers = pgTable(
+  "interview_answers",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: integer("session_id").notNull().references(() => interviewSessions.id, { onDelete: "cascade" }),
+    questionId: integer("question_id").notNull().references(() => interviewQuestions.id, { onDelete: "cascade" }),
+    attempt: integer("attempt").default(1).notNull(),
+    answerText: text("answer_text").notNull(),
+    score: integer("score").notNull(),
+    confidence: integer("confidence").notNull(),
+    verdict: varchar("verdict", { length: 40 }).notNull(),
+    strengths: jsonb("strengths").$type<string[]>().default([]).notNull(),
+    gaps: jsonb("gaps").$type<string[]>().default([]).notNull(),
+    feedback: text("feedback").notNull(),
+    coveredSignals: jsonb("covered_signals").$type<string[]>().default([]).notNull(),
+    rubric: jsonb("rubric").$type<Record<string, unknown>>().default({}).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("interview_answers_question_attempt_idx").on(table.questionId, table.attempt),
+    index("interview_answers_session_idx").on(table.sessionId, table.createdAt),
+    index("interview_answers_question_idx").on(table.questionId, table.attempt),
+  ]
+);
+
 export const learningTasks = pgTable(
   "learning_tasks",
   {

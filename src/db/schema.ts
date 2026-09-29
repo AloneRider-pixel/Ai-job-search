@@ -356,6 +356,42 @@ export const outreachMessages = pgTable(
   ]
 );
 
+export const applicationStageEvents = pgTable(
+  "application_stage_events",
+  {
+    id: serial("id").primaryKey(),
+    profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    applicationId: integer("application_id").notNull().references(() => applications.id, { onDelete: "cascade" }),
+    fromStage: varchar("from_stage", { length: 40 }),
+    toStage: varchar("to_stage", { length: 40 }).notNull(),
+    source: varchar("source", { length: 40 }).default("user").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).defaultNow().notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("application_stage_events_profile_idx").on(table.profileId, table.occurredAt),
+    index("application_stage_events_application_idx").on(table.applicationId, table.occurredAt),
+  ]
+);
+
+export const outcomeLearningModels = pgTable(
+  "outcome_learning_models",
+  {
+    id: serial("id").primaryKey(),
+    profileId: integer("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    version: integer("version").default(1).notNull(),
+    sampleCount: integer("sample_count").default(0).notNull(),
+    baseline: jsonb("baseline").$type<Record<string, unknown>>().default({}).notNull(),
+    featureStats: jsonb("feature_stats").$type<Record<string, unknown>>().default({}).notNull(),
+    trainedAt: timestamp("trained_at", { withTimezone: true }).defaultNow().notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("outcome_learning_models_profile_idx").on(table.profileId),
+  ]
+);
+
 export const learningTasks = pgTable(
   "learning_tasks",
   {

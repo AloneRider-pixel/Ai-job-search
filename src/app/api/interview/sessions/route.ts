@@ -66,7 +66,7 @@ export async function POST(req:NextRequest){
     }).returning();
 
     await db.insert(interviewQuestions).values(questions.map((q,index)=>({
-      sessionId:session.id,sequence:index+1,type:q.type,area:q.area,question:q.question,
+      sessionId:session.id,sequence:(index+1)*10,type:q.type,area:q.area,question:q.question,
       expectedSignals:q.expectedSignals,evidenceContext:q.evidenceContext,isFollowUp:false
     })));
 

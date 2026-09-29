@@ -20,7 +20,7 @@ export async function POST(req:NextRequest){
     const current=await requireAuth();
     const profile=await getProfileWithExperiences(current.user.id);
     if(!profile)return Response.json({error:"Profile not found."},{status:404});
-    const payload=applicationCreateSchema.parse(await req.json());
+    const payload=applicationCreateSchema.omit({profileId:true}).parse(await req.json());
     const application=await createOrUpdateApplication({...payload,profileId:profile.profile.id});
     return Response.json({application},{status:201});
   }catch(error){

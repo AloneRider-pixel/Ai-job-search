@@ -103,7 +103,7 @@ export default function Home(){
   const activeApps=applications.filter(x=>!["offer","rejected"].includes(x.application.stage)).length;
 
   return <div className="shell">
-    <header className="topbar"><div className="topbar-inner"><div className="brand"><span className="brand-mark">◎</span><span>Career<span style={{color:"var(--lime)"}}>OS</span></span></div><div className="row"><a className="btn" href="/inbox">Inbox</a><a className="btn" href="/settings/integrations">Integrations</a><a className="btn" href="/recruiter-intelligence">Recruiters</a><a className="btn" href="/learning">Learning</a><a className="btn" href="/resumes">Resume Vault</a><span className="badge">Persistent + Learning Career OS</span></div></div></header>
+    <header className="topbar"><div className="topbar-inner"><div className="brand"><span className="brand-mark">◎</span><span>Career<span style={{color:"var(--lime)"}}>OS</span></span></div><div className="row"><a className="btn" href="/inbox">Inbox</a><a className="btn" href="/settings/integrations">Integrations</a><a className="btn" href="/recruiter-intelligence">Recruiters</a><a className="btn" href="/learning">Learning</a><a className="btn" href="/interview">InterviewOS</a><a className="btn" href="/resumes">Resume Vault</a><span className="badge">Persistent + Learning Career OS</span></div></div></header>
 
     <div className="layout">
       <aside className="sidebar"><nav className="nav">

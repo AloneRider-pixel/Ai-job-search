@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 type Model={id:number;profileId:number;version:number;sampleCount:number;baseline:Record<string,any>;featureStats:Record<string,Record<string,any>>;trainedAt:string};
+type Calibration={id:number;profileId:number;version:number;sampleCount:number;baseline:Record<string,any>;featureStats:Record<string,Record<string,any>>;interactions:Record<string,any>;methodology:Record<string,any>;trainedAt:string};
 
 type Summary={applications:number;screening:number;interview:number;offers:number;rejected:number};
 type Transition={id:number;applicationId:number;jobTitle:string;company:string;fromStage:string|null;toStage:string;source:string;occurredAt:string};
@@ -12,6 +13,7 @@ function label(value:string){return value.replace(/_/g," ").replace(/\b\w/g,c=>c
 
 export default function LearningPage(){
   const [model,setModel]=useState<Model|null>(null);
+  const [calibration,setCalibration]=useState<Calibration|null>(null);
   const [summary,setSummary]=useState<Summary|null>(null);
   const [transitions,setTransitions]=useState<Transition[]>([]);
   const [busy,setBusy]=useState(false);
@@ -19,7 +21,7 @@ export default function LearningPage(){
 
   async function load(){
     const [modelRes,statsRes]=await Promise.all([fetch("/api/learning"),fetch("/api/learning/stats")]);
-    if(modelRes.ok)setModel((await modelRes.json()).model??null);
+    if(modelRes.ok){const data=await modelRes.json();setModel(data.model??null);setCalibration(data.calibration??null);}
     if(statsRes.ok){const data=await statsRes.json();setSummary(data.summary??null);setTransitions(data.transitions??[]);}
   }
 
@@ -31,7 +33,7 @@ export default function LearningPage(){
       const res=await fetch("/api/learning",{method:"POST"});
       const data=await res.json();
       if(!res.ok)throw new Error(data.error??"Retrain failed.");
-      setModel(data.model);await load();setMessage("Outcome model retrained from "+data.model.sampleCount+" observed applications.");
+      setModel(data.model);setCalibration(data.calibration??null);await load();setMessage("Outcome model and ranking calibration retrained from "+data.model.sampleCount+" observed applications.");
     }catch(error){setMessage(error instanceof Error?error.message:"Retrain failed.");}
     finally{setBusy(false);}
   }
@@ -58,6 +60,7 @@ export default function LearningPage(){
       <div className="grid grid2" style={{marginTop:14}}>{["roleFamily","fitBand","source","workMode"].map(renderGroup)}</div>
       <div className="card" style={{marginTop:14}}><div className="mono">RECENT STAGE EVENTS</div><h2 style={{marginTop:5}}>What the system observed</h2>{transitions.length?<div>{transitions.slice().reverse().map(t=><div key={t.id} style={{borderTop:"1px solid var(--line)",padding:"10px 0"}}><div className="row between"><strong>{t.jobTitle} · {t.company}</strong><span className="chip">{label(t.source)}</span></div><div className="small muted" style={{marginTop:4}}>{t.fromStage?label(t.fromStage)+" → ":""}{label(t.toStage)} · {new Date(t.occurredAt).toLocaleString()}</div></div>)}</div>:<p className="sub">No stage events recorded yet.</p>}</div>
     </>}
+    {calibration&&<div className="card" style={{marginTop:14}}><div className="row between"><div><div className="mono">RANKING CALIBRATION V{calibration.version}</div><h2 style={{marginTop:5}}>Observed outcomes now calibrate Job Radar.</h2></div><span className="badge">{calibration.sampleCount} apps</span></div><div className="grid grid3" style={{marginTop:12}}><div><div className="mono">BASELINE OUTCOME INDEX</div><strong>{Math.round((calibration.baseline.outcomeIndex??0.5)*100)}/100</strong></div><div><div className="mono">CALIBRATION WEIGHT</div><strong>{Math.round((calibration.methodology.calibrationWeight??0.22)*100)}%</strong></div><div><div className="mono">MIN HISTORY</div><strong>{calibration.methodology.minimumSamples??3}</strong></div></div><p className="small muted" style={{marginTop:10}}>Only sufficiently observed feature buckets contribute. The calibrated component remains a small part of the final score and is based on your recorded application funnel.</p></div>}
     <div className="card" style={{marginTop:14}}><div className="mono">RANKING POLICY</div><h2 style={{marginTop:5}}>Learning only nudges relevance.</h2><p className="sub">The learned adjustment is capped and requires observed applications per feature bucket. Base profile/JD compatibility remains the dominant signal, while the learner captures patterns such as which role families or sources have produced deeper engagement in your own history.</p></div>
   </main>;
 }

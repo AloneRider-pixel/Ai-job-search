@@ -1,1 +1,7 @@
-import type { NextConfig } from "next";\nconst nextConfig: NextConfig = {};\nexport default nextConfig;
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  reactStrictMode: true,
+};
+
+export default nextConfig;

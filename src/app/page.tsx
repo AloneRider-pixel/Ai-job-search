@@ -1,5 +1,77 @@
-import { Landing } from "@/components/landing/landing";
+"use client";
 
-export default function Home() {
-  return <Landing />;
+import { useEffect, useMemo, useState } from "react";
+
+type Job={id:number;title:string;company:string;location:string;score:number;skills:string[];description:string;posted:string};
+type Requirement={id:string;requirement:string;matched:boolean;confidence:number;evidence:{source:string;text:string;score:number}[];gap:string|null};
+type AppPackage={job:{title:string;company:string};score:number;confidence:number;skillCoverage:number;coverage:number;matchedSkills:string[];missingSkills:string[];blockers:number;requirements:Requirement[];resume:{content:string;atsScore:number};outreach:{subject:string;body:string};learning:{gap:string;action:string}[];nextActions:string[]};
+type Stage="wishlist"|"applied"|"screening"|"interview"|"offer"|"rejected";
+type Tracked={id:number;jobId:number;stage:Stage;created:string};
+
+const PROFILE={name:"Your Name",headline:"Software Engineer | AI & Data Platforms",experienceYears:2,summary:"Software engineer building Python backends, data systems, APIs, automation, and AI-enabled products.",skills:["Python","SQL","FastAPI","PostgreSQL","Docker","AWS","REST APIs","Testing","Git","React","Next.js","LangGraph","RAG","Airflow"],experience:[{title:"Software Engineer",company:"Your Company",bullets:["Built Python automation and backend services that reduced manual effort and improved release reliability.","Designed PostgreSQL-backed APIs and data workflows with testing and CI/CD.","Delivered AI-enabled workflows with measurable quality improvements."]},{title:"Founder / Developer",company:"Your Product",bullets:["Shipped an end-to-end web product using FastAPI, PostgreSQL, React, and AWS.","Owned product, engineering, deployment, and iteration from problem discovery to production."]}]};
+
+const JOBS:Job[]=[
+{id:1,title:"AI Platform Engineer",company:"Fintech Labs",location:"Bengaluru · Hybrid",score:91,posted:"3h ago",skills:["Python","FastAPI","PostgreSQL","AWS","RAG"],description:"Build production AI services with Python and FastAPI. Design PostgreSQL data models, RAG pipelines, APIs, observability, testing and CI/CD. 2+ years of engineering experience. Work with product and platform teams to ship reliable AI features."},
+{id:2,title:"Backend Engineer",company:"CloudScale",location:"Remote · India",score:88,posted:"6h ago",skills:["Python","PostgreSQL","Docker","AWS","Redis"],description:"Own backend APIs and platform services using Python, PostgreSQL, Docker and AWS. Improve reliability, testing, performance and developer experience. Strong SQL and data modeling required; distributed systems experience is a plus."},
+{id:3,title:"Full-Stack Product Engineer",company:"ProductWorks",location:"Pune · Hybrid",score:83,posted:"1d ago",skills:["React","Next.js","TypeScript","Node.js","PostgreSQL"],description:"Ship product features end-to-end across React, Next.js, TypeScript and backend APIs. Work closely with design and product, own performance, testing, accessibility and data models. 2+ years of experience with production web applications."},
+{id:4,title:"Data Platform Engineer",company:"Signal AI",location:"Remote · India",score:79,posted:"1d ago",skills:["Python","Airflow","dbt","Snowflake","AWS","SQL"],description:"Build data pipelines and analytics infrastructure with Python, Airflow, dbt, Snowflake and AWS. Improve data quality, pipeline reliability and cost. Strong SQL and production data engineering experience required."}
+];
+const STAGES:Stage[]=["wishlist","applied","screening","interview","offer","rejected"];
+
+function load<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch{return fallback}}
+
+export default function Home(){
+  const [tab,setTab]=useState<"command"|"radar"|"studio"|"tracker">("command");
+  const [jobId,setJobId]=useState(1);
+  const [jd,setJd]=useState("");
+  const [pkg,setPkg]=useState<AppPackage|null>(null);
+  const [busy,setBusy]=useState(false);
+  const [query,setQuery]=useState("");
+  const [tracked,setTracked]=useState<Tracked[]>([]);
+  const [saved,setSaved]=useState(false);
+
+  useEffect(()=>{setTracked(load<Tracked[]>("careeros:applications",[]))},[]);
+  useEffect(()=>{localStorage.setItem("careeros:applications",JSON.stringify(tracked))},[tracked]);
+
+  const filtered=useMemo(()=>JOBS.filter(j=>(j.title+" "+j.company+" "+j.skills.join(" ")).toLowerCase().includes(query.toLowerCase())),[query]);
+  const selected=JOBS.find(j=>j.id===jobId) ?? JOBS[0];
+
+  function track(job:number){if(!tracked.some(x=>x.jobId===job))setTracked(x=>[{id:Date.now(),jobId:job,stage:"wishlist",created:new Date().toISOString()},...x])}
+  function advance(id:number,next:Stage){setTracked(xs=>xs.map(x=>x.id===id?{...x,stage:next}:x))}
+  async function build(){
+    const text=jd.trim()||selected.description;
+    setBusy(true);setSaved(false);
+    try{
+      const res=await fetch("/api/application-package",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jd:text,title:selected.title,company:selected.company,profile:PROFILE})});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error||"Build failed");
+      setPkg(data.package);setTab("studio");
+    }catch(e){alert(e instanceof Error?e.message:"Build failed")}finally{setBusy(false)}
+  }
+
+  return <div className="shell">
+    <header className="topbar"><div className="topbar-inner"><div className="brand"><span className="brand-mark">◎</span><span>Career<span style={{color:"var(--lime)"}}>OS</span></span></div><span className="badge">Evidence-Backed Application OS</span></div></header>
+    <div className="layout">
+      <aside className="sidebar"><nav className="nav">
+        {([["command","Command Center"],["radar","Job Radar"],["studio","Application Studio"],["tracker","Application Tracker"]] as const).map(function(item){return <button key={item[0]} className={tab===item[0]?"active":""} onClick={function(){setTab(item[0])}}>{item[1]}</button>})}
+      </nav><div style={{marginTop:12}} className="card"><div className="mono">CORE PRIMITIVE</div><h3 style={{marginTop:7}}>Job → evidence-backed package</h3><p className="small muted">Requirement → proof → resume → outreach → prep → next action.</p></div></aside>
+
+      <main className="content">
+        {tab==="command" && <Command jobs={JOBS} tracked={tracked} onGo={setTab}/>}
+        {tab==="radar" && <section><div className="hero"><div><div className="kicker">profile-aware search</div><h1>Job Radar</h1><p className="sub">Search roles that fit your profile, then turn any job into a complete evidence-backed application package.</p></div><input value={query} onChange={function(e){setQuery(e.target.value)}} className="field" style={{maxWidth:300}} placeholder="Search role, company, skill"/></div><div className="grid">{filtered.map(function(j){return <div className="card job" key={j.id}><div><div className="job-title">{j.title}</div><div className="muted small">{j.company} · {j.location} · {j.posted}</div><div className="chips">{j.skills.map(function(s){return <span key={s} className={"chip "+(PROFILE.skills.includes(s)?"ok":"")}>{s}</span>})}</div></div><div className="row"><div className="score">{j.score}</div><button className="btn primary" onClick={function(){setJobId(j.id);setJd("");setPkg(null);setTab("studio")}}>Build</button><button className="btn" onClick={function(){track(j.id)}}>Track</button></div></div>})}</div></section>}
+
+        {tab==="studio" && <section><div className="hero"><div><div className="kicker">core product primitive</div><h1>Application Studio</h1><p className="sub">Build around evidence instead of keyword stuffing. Every important requirement is mapped to candidate proof.</p></div></div><div className="grid grid2"><div className="card"><div className="mono">1 · TARGET</div><select value={jobId} onChange={function(e){setJobId(Number(e.target.value))}} className="field" style={{marginTop:8}}>{JOBS.map(function(j){return <option key={j.id} value={j.id}>{j.title} @ {j.company}</option>})}</select><div className="mono" style={{marginTop:14}}>2 · OPTIONAL JD OVERRIDE</div><textarea value={jd} onChange={function(e){setJd(e.target.value)}} className="field" style={{marginTop:8,minHeight:240}} placeholder="Paste the full JD to analyze the exact job..."/><div className="row" style={{marginTop:10}}><button className="btn primary" onClick={build} disabled={busy}>{busy?"Building evidence graph…":"Build application package"}</button><button className="btn" onClick={function(){setJd(selected.description)}}>Use selected JD</button></div><div className="notice" style={{marginTop:12}}>Truth layer: no invented skills, metrics, recruiter identities or emails. Missing evidence stays visible.</div></div><div className="card">{!pkg?<div style={{minHeight:330,display:"grid",placeItems:"center",textAlign:"center"}}><div><div style={{fontSize:32}}>⌁</div><h2>Nothing built yet</h2><p className="muted">Select a role or paste a JD and build the package.</p></div></div>:<div><div className="row between"><div><div className="mono">PACKAGE STRENGTH</div><div style={{fontSize:38,fontWeight:900,color:"var(--lime)",marginTop:5}}>{pkg.score}<span className="muted" style={{fontSize:14}}>/100</span></div></div><div className="score">{pkg.resume.atsScore}</div></div><p className="sub" style={{marginTop:10}}>Evidence confidence {pkg.confidence}% · {pkg.blockers} uncovered requirements.</p><div className="chips"><span className="chip ok">skill {pkg.skillCoverage}%</span><span className="chip ok">evidence {pkg.coverage}%</span>{pkg.missingSkills.slice(0,4).map(function(g){return <span key={g} className="chip warn">gap: {g}</span>})}</div><button className="btn primary" style={{marginTop:14}} onClick={function(){track(selected.id);setSaved(true)}}>{saved?"Saved to tracker":"Save package + wishlist"}</button></div>}</div></div>
+          {pkg && <div className="grid" style={{marginTop:14}}><div className="card"><div className="row between"><div><div className="mono">REQUIREMENT → PROOF</div><h2 style={{marginTop:5}}>Evidence graph</h2></div><span className="badge">{pkg.requirements.filter(function(r){return r.matched}).length}/{pkg.requirements.length} mapped</span></div><div className="matrix" style={{marginTop:12}}>{pkg.requirements.map(function(r){return <div key={r.id} className={"matrix-row "+(r.matched?"ok":"bad")}><div className={r.matched?"iconok":"iconbad"}>{r.matched?"✓":"×"}</div><div><strong>{r.requirement}</strong><div className="mono" style={{marginTop:4}}>{r.matched?"confidence "+r.confidence+"%":"MISSING EVIDENCE"}</div></div><div>{r.matched?r.evidence.map(function(e){return <div key={e.text} className="small muted"><span className="mono">{e.source}</span> · {e.text}</div>}):<div className="small" style={{color:"var(--amber)"}}>{r.gap}</div>}</div></div>})}</div></div><div className="grid grid2"><div className="card"><div className="mono">TAILORED RESUME</div><h2 style={{marginTop:5}}>Evidence-backed resume</h2><div className="resume" style={{marginTop:10}}>{pkg.resume.content}</div></div><div className="card"><div className="mono">PERSONALIZED OUTREACH</div><h2 style={{marginTop:5}}>{pkg.outreach.subject}</h2><div className="email" style={{marginTop:12}}>{pkg.outreach.body}</div><div className="notice warn" style={{marginTop:14}}>Recipient safety: this draft uses “Hiring Team”. Verify a real person and email through an authorized source before sending.</div></div></div><div className="grid grid2"><div className="card"><div className="mono">LEARNING ENGINE</div><h2 style={{marginTop:5}}>Turn real gaps into proof</h2>{pkg.learning.length?pkg.learning.map(function(l){return <div key={l.gap} style={{borderTop:"1px solid var(--line)",padding:"11px 0"}}><strong>{l.gap}</strong><div className="small muted" style={{marginTop:4}}>{l.action}</div></div>}):<div className="notice" style={{marginTop:10}}>No material gaps surfaced from the available evidence.</div>}</div><div className="card"><div className="mono">NEXT ACTIONS</div><h2 style={{marginTop:5}}>What to do next</h2>{pkg.nextActions.map(function(a){return <div key={a} className="row" style={{marginTop:10,alignItems:"flex-start"}}><span style={{color:"var(--lime)"}}>→</span><span className="small">{a}</span></div>})}</div></div></div>}
+        </section>}
+
+        {tab==="tracker" && <section><div className="hero"><div><div className="kicker">career CRM</div><h1>Application Tracker</h1><p className="sub">Track stage and next action. Outcomes become training data for better future ranking.</p></div></div><div className="board">{STAGES.map(function(s){return <div className="col" key={s}><h3>{s}</h3>{tracked.filter(function(a){return a.stage===s}).map(function(a){const j=JOBS.find(function(x){return x.id===a.jobId});if(!j)return null;const next=STAGES[Math.min(STAGES.indexOf(s)+1,STAGES.length-1)];return <div className="card-mini" key={a.id}><strong>{j.title}</strong><span>{j.company}</span><span>fit {j.score}%</span><button className="btn" style={{marginTop:8,width:"100%",padding:"7px"}} onClick={function(){advance(a.id,next)}}>Move → {next}</button></div>})}</div>})}</div></section>}
+      </main>
+    </div>
+    <div className="footer">CareerOS · Evidence-Backed Job Search OS · Never invent evidence · Human approval before outreach or submission</div>
+  </div>
+}
+
+function Command({jobs,tracked,onGo}:{jobs:Job[];tracked:Tracked[];onGo:(t:"command"|"radar"|"studio"|"tracker")=>void}){
+  const avg=Math.round(jobs.reduce(function(s,j){return s+j.score},0)/jobs.length);
+  return <section><div className="hero"><div><div className="kicker">evidence-backed job search</div><h1>Build proof.<br/><span style={{color:"var(--lime)"}}>Apply with precision.</span></h1><p className="sub">CareerOS converts a job description into a traceable application package: requirement → verified candidate evidence → tailored resume → outreach → learning → next action.</p></div><button className="btn primary" onClick={function(){onGo("radar")}}>Open Job Radar →</button></div><div className="grid grid3"><div className="card stat"><div><div className="mono">TARGET JOBS</div><strong>{jobs.length}</strong></div><span className="chip ok">profile-aware</span></div><div className="card stat"><div><div className="mono">AVG FIT</div><strong>{avg}</strong></div><span className="chip ok">evidence weighted</span></div><div className="card stat"><div><div className="mono">TRACKED</div><strong>{tracked.length}</strong></div><span className="chip">local pipeline</span></div></div><div className="grid grid2" style={{marginTop:14}}><div className="card"><div className="mono">THE DIFFERENTIATOR</div><h2 style={{marginTop:5}}>One job becomes one defensible application.</h2><p className="sub">Instead of “AI wrote my resume”, the product can answer: <strong>Which requirement does this bullet prove?</strong> and <strong>What evidence is missing?</strong></p><div className="grid" style={{marginTop:12}}><div className="notice">✓ Resume claims stay attached to candidate proof.</div><div className="notice">✓ Recruiter identities and emails are never fabricated.</div><div className="notice">✓ Gaps become study tasks instead of fake keywords.</div></div></div><div className="card"><div className="mono">FULL LOOP</div><h2 style={{marginTop:5}}>Search → package → track → learn.</h2><div className="grid" style={{marginTop:12}}>{["Job Radar","Application Studio","Outreach + verification","Application Tracker","Outcome learning"].map(function(x,i){return <div key={x} className="row"><span className="chip ok">{String(i+1).padStart(2,"0")}</span><span className="small">{x}</span></div>})}</div><button className="btn secondary" style={{marginTop:14}} onClick={function(){onGo("studio")}}>Build an application package →</button></div></div></section>
 }

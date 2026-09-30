@@ -341,7 +341,14 @@ export async function trainRankingCalibration(profileId: number) {
   const baseline = smoothStat(records, 0.5);
   const baselineIndex = baseline.outcomeIndex;
 
-  const featureGroups: Record<string, Record<string, CalibrationStat>> = {
+  type CalibrationFeature =
+  | "roleFamily"
+  | "seniority"
+  | "fitBand"
+  | "source"
+  | "workMode";
+
+  const featureGroups: Record<CalibrationFeature, Record<string, CalibrationStat>> = {
     roleFamily: {},
     seniority: {},
     fitBand: {},
@@ -349,9 +356,7 @@ export async function trainRankingCalibration(profileId: number) {
     workMode: {},
   };
 
-  for (const feature of Object.keys(featureGroups) as Array<
-    keyof typeof featureGroups
-  >) {
+  for (const feature of Object.keys(featureGroups) as CalibrationFeature[]) {
     const groups = new Map<string, TrainingRecord[]>();
 
     for (const record of records) {

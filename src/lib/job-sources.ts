@@ -47,7 +47,7 @@ export async function fetchLeverJobs(site: string): Promise<NormalizedJob[]> {
     const categories = asRecord(job.categories);
     const locations = Array.isArray(categories.allLocations) ? categories.allLocations.join(", ") : categories.location;
     return {
-      source: "lever",
+      source: "lever" as const,
       externalId: String(job.id),
       title: String(job.text ?? ""),
       company: board,
@@ -84,7 +84,7 @@ export async function fetchAshbyJobs(boardName: string): Promise<NormalizedJob[]
     const locationParts = [job.location, ...secondary].filter(Boolean).map(String);
 
     return {
-      source: "ashby",
+      source: "ashby" as const,
       externalId: String(job.jobUrl ?? job.applyUrl ?? `${board}:${job.title}:${job.publishedAt}`),
       title: String(job.title ?? ""),
       company: board,

@@ -1,1 +1,4 @@
-import { defineConfig } from "eslint/config";\nimport nextVitals from "eslint-config-next/core-web-vitals";\nexport default defineConfig([...nextVitals]);
+import { defineConfig } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+
+export default defineConfig([...nextVitals]);

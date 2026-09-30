@@ -81,7 +81,7 @@ async function fullGoogleSync(accessToken:string,accountEmail:string){
   return {messages:results,historyId,recovered:false};
 }
 
-async function partialGoogleSync(accessToken:string,accountEmail,startHistoryId:string){
+async function partialGoogleSync(accessToken:string,accountEmail:string,startHistoryId:string){
   const ids=new Map<string,string|undefined>();
   let pageToken="";
   let finalHistoryId=startHistoryId;

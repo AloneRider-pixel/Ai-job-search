@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Connection={id:number;provider:string;accountEmail:string;scopes:string[];lastSyncAt:string|null;nextSyncAt:string|null;syncFailureCount:number;status:string;lastError:string|null};
@@ -14,7 +15,21 @@ export default function IntegrationsPage(){
     if(res.ok){const data=await res.json();setConnections(data.connections??[]);}
   }
 
-  useEffect(()=>{load().catch(()=>setMessage("Unable to load integrations."))},[]);
+  useEffect(() => {
+  let cancelled = false;
+  fetch("/api/connections")
+    .then(async res => {
+      if (!res.ok || cancelled) return;
+      const data = await res.json();
+      if (!cancelled) setConnections(data.connections ?? []);
+    })
+    .catch(() => {
+      if (!cancelled) setMessage("Unable to load integrations.");
+    });
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   async function sync(provider:string){
     setBusy(provider);setMessage("");
@@ -30,7 +45,7 @@ export default function IntegrationsPage(){
   function connected(provider:string){return connections.find(c=>c.provider===provider&&c.status==="connected");}
 
   return <main style={{maxWidth:1000,margin:"0 auto",padding:"38px 22px"}}>
-    <div className="row between"><div><div className="kicker">communication intelligence</div><h1>Integrations</h1><p className="sub">Connect your mailbox so CareerOS can detect application confirmations, recruiter replies, assessments, interviews, offers and rejections, then update your application pipeline.</p></div><a href="/" className="btn">← Dashboard</a></div>
+    <div className="row between"><div><div className="kicker">communication intelligence</div><h1>Integrations</h1><p className="sub">Connect your mailbox so CareerOS can detect application confirmations, recruiter replies, assessments, interviews, offers and rejections, then update your application pipeline.</p></div><Link href="/" className="btn">← Dashboard</Link></div>
     {message&&<div className="notice" style={{marginTop:14}}>{message}</div>}
     <div className="grid grid2" style={{marginTop:14}}>
       {["google","microsoft"].map(provider=>{

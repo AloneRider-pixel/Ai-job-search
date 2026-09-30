@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type Tab="command"|"radar"|"studio"|"tracker";
@@ -46,7 +47,28 @@ export default function Home(){
     finally{setBusy("");}
   }
 
-  useEffect(()=>{load().catch(()=>undefined)},[]);
+  useEffect(() => {
+  let cancelled = false;
+  Promise.all([fetch("/api/auth/me"), fetch("/api/jobs?limit=100"), fetch("/api/applications")])
+    .then(async ([meRes, jobsRes, appsRes]) => {
+      if (!meRes.ok || !jobsRes.ok || !appsRes.ok) throw new Error("Unable to load CareerOS data.");
+      const me = await meRes.json();
+      const jobData = await jobsRes.json();
+      const appData = await appsRes.json();
+      const loadedJobs = jobData.jobs ?? [];
+      if (cancelled) return;
+      setProfile(me.profile ?? null);
+      setJobs(loadedJobs);
+      setApplications(appData.applications ?? []);
+      setJobId(current => current ?? loadedJobs[0]?.id ?? null);
+    })
+    .catch(error => {
+      if (!cancelled) setNotice(error instanceof Error ? error.message : "Unable to load CareerOS data.");
+    });
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   const filtered=useMemo(()=>{
     const q=query.toLowerCase().trim();

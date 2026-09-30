@@ -1,6 +1,6 @@
 import { desc, eq, and } from "drizzle-orm";
 import { db } from "@/db";
-import { applicationPackages, applications, jobs, profiles } from "@/db/schema";
+import { applicationPackages, applications, jobs, profileExperiences, profiles } from "@/db/schema";
 
 function dbConfigured() {
   if (!process.env.DATABASE_URL) {
@@ -57,4 +57,19 @@ export async function createProfile(input: typeof profiles.$inferInsert) {
   dbConfigured();
   const [created] = await db.insert(profiles).values(input).returning();
   return created;
+}
+
+
+export async function getProfileWithExperiences(userId: number) {
+  dbConfigured();
+  const [profile] = await db.select().from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
+  if (!profile) return null;
+
+  const experiences = await db.select().from(profileExperiences)
+    .where(eq(profileExperiences.profileId, profile.id))
+    .orderBy(desc(profileExperiences.startDate), desc(profileExperiences.createdAt));
+
+  return { profile, experiences };
 }

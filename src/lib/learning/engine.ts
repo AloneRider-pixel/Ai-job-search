@@ -112,7 +112,7 @@ function aggregate(rows:Awaited<ReturnType<typeof loadTrainingRows>>,stageHistor
   for(const kind of Object.keys(buckets) as Array<keyof typeof buckets>){
     const groups=new Map<string,typeof records>();
     for(const record of records){
-      const key=record[kind];
+      const key=String(record[kind as keyof typeof record]);
       const list=groups.get(key)??[];
       list.push(record);
       groups.set(key,list);

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ChangeEvent, useEffect, useState } from "react";
 
 type Document={id:number;filename:string|null;sourceType:string;mimeType:string|null;isMaster:boolean;createdAt:string};
@@ -18,7 +19,23 @@ export default function ResumeVault(){
     if(resumeRes.ok){const data=await resumeRes.json();setDocuments(data.documents??[]);}
     if(meRes.ok)setMe(await meRes.json());
   }
-  useEffect(()=>{load().catch(()=>setError("Unable to load your Resume Vault."))},[]);
+  useEffect(() => {
+  let cancelled = false;
+  Promise.all([fetch("/api/resumes"), fetch("/api/auth/me")])
+    .then(async ([resumeRes, meRes]) => {
+      const resumeData = resumeRes.ok ? await resumeRes.json() : { documents: [] };
+      const meData = meRes.ok ? await meRes.json() : null;
+      if (cancelled) return;
+      setDocuments(resumeData.documents ?? []);
+      setMe(meData);
+    })
+    .catch(() => {
+      if (!cancelled) setError("Unable to load your Resume Vault.");
+    });
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   async function upload(event:ChangeEvent<HTMLFormElement>){
     event.preventDefault();
@@ -36,7 +53,7 @@ export default function ResumeVault(){
   }
 
   return <main style={{maxWidth:1100,margin:"0 auto",padding:"38px 22px"}}>
-    <div className="row between"><div><div className="kicker">candidate evidence</div><h1>Resume Vault</h1><p className="sub">Upload the source resume once. CareerOS keeps the raw document text, extracts only observable facts, and uses it as evidence for future applications.</p></div><a href="/" className="btn">← Dashboard</a></div>
+    <div className="row between"><div><div className="kicker">candidate evidence</div><h1>Resume Vault</h1><p className="sub">Upload the source resume once. CareerOS keeps the raw document text, extracts only observable facts, and uses it as evidence for future applications.</p></div><Link href="/" className="btn">← Dashboard</Link></div>
 
     {me?.profile&&<div className="grid grid3" style={{marginTop:18}}>
       <div className="card"><div className="mono">NAME</div><h2 style={{marginTop:5}}>{me.profile.name}</h2></div>

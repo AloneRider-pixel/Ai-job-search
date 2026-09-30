@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Model={id:number;profileId:number;version:number;sampleCount:number;baseline:Record<string,any>;featureStats:Record<string,Record<string,any>>;trainedAt:string};
@@ -25,7 +26,25 @@ export default function LearningPage(){
     if(statsRes.ok){const data=await statsRes.json();setSummary(data.summary??null);setTransitions(data.transitions??[]);}
   }
 
-  useEffect(()=>{load().catch(()=>setMessage("Unable to load learning data."))},[]);
+  useEffect(() => {
+  let cancelled = false;
+  Promise.all([fetch("/api/learning"), fetch("/api/learning/stats")])
+    .then(async ([modelRes, statsRes]) => {
+      const modelData = modelRes.ok ? await modelRes.json() : { model: null, calibration: null };
+      const statsData = statsRes.ok ? await statsRes.json() : { summary: null, transitions: [] };
+      if (cancelled) return;
+      setModel(modelData.model ?? null);
+      setCalibration(modelData.calibration ?? null);
+      setSummary(statsData.summary ?? null);
+      setTransitions(statsData.transitions ?? []);
+    })
+    .catch(() => {
+      if (!cancelled) setMessage("Unable to load learning data.");
+    });
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   async function retrain(){
     setBusy(true);setMessage("");
@@ -45,7 +64,7 @@ export default function LearningPage(){
   };
 
   return <main style={{maxWidth:1200,margin:"0 auto",padding:"38px 22px"}}>
-    <div className="row between"><div><div className="kicker">outcome learning engine</div><h1>Learn from what actually happened.</h1><p className="sub">CareerOS learns from your observed application funnel. It does not treat an un-applied job as a negative outcome, and small samples receive conservative smoothing.</p></div><div className="row"><a className="btn" href="/">Dashboard</a><button className="btn primary" disabled={busy} onClick={retrain}>{busy?"Retraining…":"Retrain model"}</button></div></div>
+    <div className="row between"><div><div className="kicker">outcome learning engine</div><h1>Learn from what actually happened.</h1><p className="sub">CareerOS learns from your observed application funnel. It does not treat an un-applied job as a negative outcome, and small samples receive conservative smoothing.</p></div><div className="row"><Link className="btn" href="/">Dashboard</Link><button className="btn primary" disabled={busy} onClick={retrain}>{busy?"Retraining…":"Retrain model"}</button></div></div>
     {message&&<div className="notice" style={{marginTop:14}}>{message}</div>}
 
     <div className="grid grid3" style={{marginTop:14}}>

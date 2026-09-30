@@ -4,12 +4,12 @@ type TokenResponse={access_token?:string;refresh_token?:string;expires_in?:numbe
 export type MicrosoftMailCursor={inbox:string|null;sentItems:string|null};
 
 function required(name:string){const value=process.env[name];if(!value)throw new Error(name+" is not configured.");return value;}
-async function tokenRequest(body:Record<string,string>){
+async function tokenRequest(body:Record<string,string>):Promise<TokenResponse & {access_token:string}>{
   const tenant=process.env.MICROSOFT_TENANT_ID??"common";
   const response=await fetch("https://login.microsoftonline.com/"+encodeURIComponent(tenant)+"/oauth2/v2.0/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams(body),signal:AbortSignal.timeout(20_000)});
   const data=await response.json() as TokenResponse;
   if(!response.ok||!data.access_token)throw new Error(data.error_description??"Microsoft token request failed.");
-  return data;
+  return data as TokenResponse & {access_token:string};
 }
 export function microsoftAuthorizeUrl(state:string){
   const params=new URLSearchParams({client_id:required("MICROSOFT_CLIENT_ID"),response_type:"code",redirect_uri:required("MICROSOFT_REDIRECT_URI"),response_mode:"query",state,scope:["openid","profile","email","offline_access","Mail.Read","Mail.Send"].join(" ")});

@@ -150,7 +150,7 @@ export async function discoverContacts(input:{
       }
     }
 
-    const name=text(enriched.name)??[text(enriched.first_name),text(enriched.last_name)].filter(Boolean).join(" ")||null;
+    const name=text(enriched.name) ?? ([text(enriched.first_name), text(enriched.last_name)].filter(Boolean).join(" ") || null);
     const role=text(enriched.title)??text(person.title);
     const profileUrl=text(enriched.linkedin_url)??text(person.linkedin_url);
     const email=text(enriched.email);

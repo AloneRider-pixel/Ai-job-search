@@ -173,7 +173,7 @@ export async function trainRankingCalibration(profileId:number){
   for(const feature of Object.keys(featureGroups) as Array<keyof typeof featureGroups>){
     const groups=new Map<string,typeof records>();
     for(const record of records){
-      const key=record[feature];
+      const key=String(record[feature as keyof typeof record]);
       const list=groups.get(key)??[];
       list.push(record);
       groups.set(key,list);

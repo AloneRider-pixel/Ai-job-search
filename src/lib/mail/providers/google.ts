@@ -26,7 +26,7 @@ export async function exchangeGoogleCode(code:string):Promise<MailConnectionSecr
 }
 export async function refreshGoogleToken(refreshToken:string){
   const data=await googleToken({refresh_token:refreshToken,client_id:required("GOOGLE_CLIENT_ID"),client_secret:required("GOOGLE_CLIENT_SECRET"),grant_type:"refresh_token"});
-  return {accessToken:data.access_token,tokenExpiresAt:new Date(Date.now()+(data.expires_in??3600)*1000)};
+  return {accessToken:data.access_token,refreshToken:data.refresh_token??refreshToken,tokenExpiresAt:new Date(Date.now()+(data.expires_in??3600)*1000)};
 }
 function decodeBase64Url(value:string){return Buffer.from(value,"base64url").toString("utf8");}
 function header(headers:Array<{name?:string;value?:string}>,name:string){return headers.find(h=>h.name?.toLowerCase()===name.toLowerCase())?.value??"";}
@@ -81,7 +81,7 @@ async function fullGoogleSync(accessToken:string,accountEmail:string){
   return {messages:results,historyId,recovered:false};
 }
 
-async function partialGoogleSync(accessToken:string,accountEmail,startHistoryId:string){
+async function partialGoogleSync(accessToken:string,accountEmail:string,startHistoryId:string){
   const ids=new Map<string,string|undefined>();
   let pageToken="";
   let finalHistoryId=startHistoryId;

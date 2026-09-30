@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Job={id:number;title:string;company:string;location:string|null};
@@ -28,7 +29,31 @@ export default function RecruiterIntelligence(){
     if(applicationsRes.ok)setApplications((await applicationsRes.json()).applications??[]);
   }
 
-  useEffect(()=>{load().catch(()=>setMessage("Unable to load recruiter intelligence."))},[]);
+  useEffect(() => {
+  let cancelled = false;
+  Promise.all([fetch("/api/jobs?limit=100"), fetch("/api/contacts"), fetch("/api/applications")])
+    .then(async ([jobsRes, contactsRes, applicationsRes]) => {
+      if (cancelled) return;
+      if (jobsRes.ok) {
+        const data = await jobsRes.json();
+        if (!cancelled) setJobs(data.jobs ?? []);
+      }
+      if (contactsRes.ok) {
+        const data = await contactsRes.json();
+        if (!cancelled) setContacts(data.contacts ?? []);
+      }
+      if (applicationsRes.ok) {
+        const data = await applicationsRes.json();
+        if (!cancelled) setApplications(data.applications ?? []);
+      }
+    })
+    .catch(() => {
+      if (!cancelled) setMessage("Unable to load recruiter intelligence.");
+    });
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   async function discover(){
     if(!jobId){setMessage("Select a job first.");return;}
@@ -93,7 +118,7 @@ export default function RecruiterIntelligence(){
   }
 
   return <main style={{maxWidth:1100,margin:"0 auto",padding:"38px 22px"}}>
-    <div className="row between"><div><div className="kicker">recruiter intelligence</div><h1>Discover the right contact.</h1><p className="sub">Find current recruiting or hiring-side contacts for a specific job, preserve provider evidence, and require human approval before outreach.</p></div><div className="row"><a className="btn" href="/inbox">Inbox</a><a className="btn" href="/">Dashboard</a></div></div>
+    <div className="row between"><div><div className="kicker">recruiter intelligence</div><h1>Discover the right contact.</h1><p className="sub">Find current recruiting or hiring-side contacts for a specific job, preserve provider evidence, and require human approval before outreach.</p></div><div className="row"><a className="btn" href="/inbox">Inbox</a><Link className="btn" href="/">Dashboard</Link></div></div>
     <div className="card" style={{marginTop:14}}>
       <div className="mono">1 · TARGET JOB</div>
       <div className="row" style={{marginTop:8}}>

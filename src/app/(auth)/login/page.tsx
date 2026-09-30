@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email,setEmail]=useState("");
@@ -12,14 +12,24 @@ export default function LoginPage() {
   const [busy,setBusy]=useState(false);
 
   async function submit(event:FormEvent){
-    event.preventDefault();setBusy(true);setError("");
+    event.preventDefault();
+    setBusy(true);
+    setError("");
     try{
-      const res=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+      const res=await fetch("/api/auth/login",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({email,password})
+      });
       const data=await res.json();
       if(!res.ok)throw new Error(data.error??"Login failed.");
       router.replace(searchParams.get("next")||"/");
       router.refresh();
-    }catch(e){setError(e instanceof Error?e.message:"Login failed.");}finally{setBusy(false);}
+    }catch(e){
+      setError(e instanceof Error?e.message:"Login failed.");
+    }finally{
+      setBusy(false);
+    }
   }
 
   return <main style={{minHeight:"100vh",display:"grid",placeItems:"center",padding:24}}>
@@ -32,4 +42,10 @@ export default function LoginPage() {
       <p className="small muted" style={{marginTop:14}}>No account? <a href="/register" style={{color:"var(--lime)"}}>Create one</a></p>
     </form>
   </main>;
+}
+
+export default function LoginPage() {
+  return <Suspense fallback={<main style={{minHeight:"100vh",display:"grid",placeItems:"center"}} />}>
+    <LoginForm />
+  </Suspense>;
 }

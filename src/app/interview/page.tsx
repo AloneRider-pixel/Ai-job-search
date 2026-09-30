@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type Job={id:number;title:string;company:string;location:string|null;score:number;description:string};
@@ -45,7 +46,26 @@ export default function InterviewPage(){
     finally{setBusy("");}
   }
 
-  useEffect(()=>{loadBase().catch(()=>undefined)},[]);
+  useEffect(() => {
+  let cancelled = false;
+  Promise.all([fetch("/api/jobs?limit=100"), fetch("/api/interview/sessions")])
+    .then(async ([jobsRes, sessionsRes]) => {
+      if (!jobsRes.ok || !sessionsRes.ok) throw new Error("Unable to load InterviewOS.");
+      const jobData = await jobsRes.json();
+      const sessionData = await sessionsRes.json();
+      const loadedJobs = (jobData.jobs ?? []) as Job[];
+      if (cancelled) return;
+      setJobs(loadedJobs);
+      setSessions((sessionData.sessions ?? []) as Session[]);
+      setJobId(current => current ?? loadedJobs[0]?.id ?? null);
+    })
+    .catch(error => {
+      if (!cancelled) setNotice(error instanceof Error ? error.message : "Unable to load InterviewOS.");
+    });
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   async function openSession(id:number){
     setBusy("open-"+id);setNotice("");setEvaluation(null);setAnswer("");
@@ -121,7 +141,7 @@ export default function InterviewPage(){
   return <main style={{maxWidth:1240,margin:"0 auto",padding:"38px 22px"}}>
     <div className="hero">
       <div><div className="kicker">adaptive interview os</div><h1>Practice against the job, not a generic question bank.</h1><p className="sub">Interview questions are grounded in the target JD, your stored profile evidence, and verified application gaps. Weak answers can trigger targeted follow-ups.</p></div>
-      <div className="row"><a className="btn" href="/">Dashboard</a><a className="btn" href="/learning">Learning</a></div>
+      <div className="row"><Link className="btn" href="/">Dashboard</Link><a className="btn" href="/learning">Learning</a></div>
     </div>
 
     {notice&&<div className="notice" style={{marginBottom:14}}>{notice}</div>}

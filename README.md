@@ -1,19 +1,19 @@
 # CareerOS — Evidence-Backed Job Search OS
 
-CareerOS turns a target job into an evidence-backed application workflow:
+CareerOS turns a target role into a traceable application workflow:
 
 ```text
 Job
  ↓
 JD intelligence
  ↓
-Requirements → candidate evidence
+Requirement → candidate evidence
  ↓
-Tailored resume / application package
+Tailored application package
  ↓
-Verified outreach
+Approved outreach
  ↓
-Learning + interview prep
+Interview preparation
  ↓
 Application tracking
  ↓
@@ -22,50 +22,50 @@ Observed-outcome learning
 
 ## Core capabilities
 
-- Profile-aware job discovery and JD analysis.
-- Requirement → proof mapping with truth-locked resume generation.
-- Application package versioning and ATS-oriented validation.
-- Provider-bounded job ingestion for Lever and Ashby public boards.
-- Recruiter-contact provenance and approval state.
-- Gmail and Microsoft Graph mailbox synchronization with provider-native cursors.
-- Explicit outbound-email approval boundaries.
+- Profile-aware job discovery and job-description analysis.
+- Requirement-to-proof mapping and truth-locked resume generation.
+- Versioned application packages and ATS-oriented validation.
+- Provider-bounded ingestion for public Lever and Ashby boards.
+- Recruiter-contact provenance and verification state.
+- Gmail and Microsoft Graph synchronization with provider-native cursors.
+- Explicit approval boundary for outbound email.
 - Persistent adaptive interview practice.
-- Outcome-based ranking calibration and conservative learning from observed application stages.
+- Outcome-based ranking calibration from observed application stages.
 - Scheduled mailbox refresh with leases/backoff and protected worker authentication.
 
-## Security / trust rules
+## Security model
 
-CareerOS must never fabricate candidate facts, recruiter identities, URLs, email addresses, outcomes, or unsupported skills.
+CareerOS must not fabricate candidate facts, recruiter identities, URLs, addresses, outcomes, or unsupported skills.
 
-The server validates external/provider data at API boundaries. Job ingestion accepts a provider + board instead of arbitrary URLs to reduce SSRF exposure. OAuth tokens and provider credentials stay server-side and are stored through the application's encrypted credential boundary.
+External/provider data is schema-validated at API boundaries. Job ingestion accepts a provider + board rather than an arbitrary URL, reducing SSRF exposure. OAuth tokens and provider credentials remain server-side and pass through the application's encrypted credential boundary.
 
-Unknown information remains explicit.
+Unknown information stays explicit rather than being guessed.
 
 ## Architecture
 
 ```text
-Next.js application
- ├── Authenticated API routes
+Next.js
+ ├── authenticated API routes
  ├── PostgreSQL + Drizzle
  ├── JD / resume intelligence
- ├── Job ingestion adapters
- ├── Mailbox adapters
- ├── Recruiter intelligence
- ├── Interview engine
- └── Outcome learning / ranking calibration
+ ├── job ingestion adapters
+ ├── mailbox adapters
+ ├── recruiter intelligence
+ ├── interview engine
+ └── outcome learning / calibration
 ```
 
 ## Environment
 
-Create `.env.local` with the database and worker secrets required by the deployment.
+Create `.env.local` with deployment-specific values.
 
-```bash
+```text
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB
 DB_POOL_MAX=10
-CAREEROS_WORKER_SECRET=generate-a-long-random-secret
+CAREEROS_WORKER_SECRET=<generate-a-long-random-secret>
 ```
 
-Optional provider credentials are documented in the integration sections of the repository.
+Never commit real credentials.
 
 ## Quick start
 
@@ -75,7 +75,7 @@ npm run db:push
 npm run dev
 ```
 
-Health: `GET /api/health`
+Health endpoint: `GET /api/health`.
 
 ## Validation
 
@@ -85,33 +85,34 @@ npm run typecheck
 npm run build
 ```
 
-CI also runs CodeQL, Scorecard, dependency review, and the scheduled mailbox workflow.
+CI additionally runs CodeQL, Scorecard, dependency review, and the scheduled mailbox workflow.
 
-## Outcome learning
+## Ranking and outcome learning
 
-The ranking learner uses observed application-stage events rather than treating non-applied jobs as negative outcomes. Calibration is conservative, capped, versioned, and exposed with supporting signals so ranking changes remain explainable.
+The learner updates ranking behavior from observed application-stage events. It does not treat non-applied jobs as negative outcomes. Calibration is bounded, versioned, and surfaced with supporting signals so ranking changes remain explainable.
 
-The learner is empirical personalization infrastructure; it is not a prediction of an employer's decision or a guarantee of shortlisting.
-
-## Mailbox automation
-
-The scheduled worker reuses Gmail history IDs and Microsoft Graph delta links rather than rescanning a mailbox on every run. Each connection carries sync scheduling/failure state and a short lease to reduce duplicate work. Outbound actions remain explicitly approved.
+This is empirical personalization infrastructure, not a prediction of an employer's decision or a guarantee of shortlisting.
 
 ## Resume intelligence
 
-Uploaded resumes support PDF/DOCX/TXT extraction, fingerprints for duplicate detection, parser warnings for scan-only PDFs, candidate fact extraction, source history, and on-demand artifact generation.
+Uploaded resumes support PDF/DOCX/TXT extraction, duplicate fingerprints, parser warnings for scan-only PDFs, candidate fact extraction, source history, and on-demand artifact generation.
+
+## Mailbox automation
+
+Scheduled synchronization uses Gmail history IDs and Microsoft Graph delta links to avoid full mailbox rescans. Connection state tracks scheduling/failures and short leases reduce duplicate work. Outbound actions require explicit approval.
 
 ## Evidence policy
 
-Application quality, ranking, parsing, and learning claims should be tied to reproducible artifacts and explicitly labeled as observed measurements, design targets, or deterministic test evidence.
+Claims about parsing, ranking, learning, or application quality should identify whether they are observed measurements, design targets, or deterministic test evidence, with reproducible artifacts where applicable.
 
-## Review path
+## Documentation
 
-Start with [SECURITY.md](SECURITY.md), then inspect authenticated API boundaries, provider connectors, database migrations, resume artifacts, mailbox synchronization, and learning/calibration code.
+- [Security](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## Maintenance standard
 
-Keep secrets server-side, external inputs schema-validated, scheduled mailbox work idempotent, and all generated candidate/recruiter facts traceable to source evidence.
+Keep secrets server-side, validate external inputs, keep scheduled work idempotent, and make generated candidate/recruiter facts traceable to source evidence.
 
 ## License
 

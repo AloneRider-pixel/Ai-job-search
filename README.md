@@ -1,56 +1,63 @@
 # CareerOS — Evidence-Backed Job Search OS
 
-CareerOS turns each target job into an evidence-backed application package:
+CareerOS turns a target job into an evidence-backed application workflow:
 
-Job → JD Intelligence → Requirement → Candidate Evidence → Tailored Resume → Verified Outreach → Learning → Interview Prep → Application Tracking → Outcome Learning
-
-## Current engineering layers
-
-### 1. Evidence-backed application core
-- Profile-aware Job Radar
-- Application Studio
-- Requirement → proof matrix
-- Truth-locked resume generation
-- ATS-style scoring
-- Outreach drafting with no fabricated identities
-- Skill-gap actions
-- Application tracker
-
-### 2. Persistent backend
-- PostgreSQL + Drizzle schema
-- Profile and experience storage
-- Normalized job storage
-- Job analysis storage
-- Versioned application packages
-- Application pipeline
-- Recruiter-contact provenance and verification state
-- Outreach message state
-- Learning tasks
-- Health check against PostgreSQL
-- Zod validation at API boundaries
-
-### 3. Real job ingestion
-The ingestion boundary accepts a provider + board name rather than an arbitrary URL. That keeps server-side fetching restricted to known provider hosts and avoids SSRF through user-controlled URLs.
-
-Implemented providers:
-- Lever public postings
-- Ashby public job postings
-
-Example:
-`POST /api/ingest/jobs`
-
-```json
-{
-  "provider": "ashby",
-  "board": "ExampleCompany"
-}
+```text
+Job
+ ↓
+JD intelligence
+ ↓
+Requirements → candidate evidence
+ ↓
+Tailored resume / application package
+ ↓
+Verified outreach
+ ↓
+Learning + interview prep
+ ↓
+Application tracking
+ ↓
+Observed-outcome learning
 ```
 
-The ingestion service normalizes provider-specific records into the shared `jobs` table and upserts on `source + externalId`.
+## Core capabilities
+
+- Profile-aware job discovery and JD analysis.
+- Requirement → proof mapping with truth-locked resume generation.
+- Application package versioning and ATS-oriented validation.
+- Provider-bounded job ingestion for Lever and Ashby public boards.
+- Recruiter-contact provenance and approval state.
+- Gmail and Microsoft Graph mailbox synchronization with provider-native cursors.
+- Explicit outbound-email approval boundaries.
+- Persistent adaptive interview practice.
+- Outcome-based ranking calibration and conservative learning from observed application stages.
+- Scheduled mailbox refresh with leases/backoff and protected worker authentication.
+
+## Security / trust rules
+
+CareerOS must never fabricate candidate facts, recruiter identities, URLs, email addresses, outcomes, or unsupported skills.
+
+The server validates external/provider data at API boundaries. Job ingestion accepts a provider + board instead of arbitrary URLs to reduce SSRF exposure. OAuth tokens and provider credentials stay server-side and are stored through the application's encrypted credential boundary.
+
+Unknown information remains explicit.
+
+## Architecture
+
+```text
+Next.js application
+ ├── Authenticated API routes
+ ├── PostgreSQL + Drizzle
+ ├── JD / resume intelligence
+ ├── Job ingestion adapters
+ ├── Mailbox adapters
+ ├── Recruiter intelligence
+ ├── Interview engine
+ └── Outcome learning / ranking calibration
+```
 
 ## Environment
 
-Create `.env.local`:
+Create `.env.local` with the database and worker secrets required by the deployment.
 
 ```bash
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB
@@ -58,7 +65,9 @@ DB_POOL_MAX=10
 CAREEROS_WORKER_SECRET=generate-a-long-random-secret
 ```
 
-Then:
+Optional provider credentials are documented in the integration sections of the repository.
+
+## Quick start
 
 ```bash
 npm install
@@ -66,144 +75,44 @@ npm run db:push
 npm run dev
 ```
 
-Health:
-`GET /api/health`
+Health: `GET /api/health`
 
-Jobs:
-`GET /api/jobs`
-
-Applications:
-`GET /api/applications?profileId=1`
-
-Application package persistence:
-`POST /api/application-packages`
-
-## Trust rules
-
-CareerOS must never fabricate:
-- candidate experience or metrics
-- skills not supported by evidence
-- recruiter identities
-- professional profile URLs
-- email addresses
-- interview outcomes
-
-Unknown information remains explicit.
-
-The product is designed to improve application quality and job-search efficiency; it does not guarantee shortlisting.
-
-## Remaining production layers
-
-- Production observability and evaluation hardening
-
-### 6. Resume intelligence + artifacts
-- PDF, DOCX and TXT upload endpoint
-- 10 MB upload ceiling
-- PDF text extraction with `pdf-parse`
-- DOCX raw-text extraction with Mammoth
-- SHA-256 document fingerprinting and idempotent duplicate handling
-- Observable parser warnings for scanned/image-only PDFs
-- Candidate fact extraction without inventing experience
-- Private Resume Vault UI
-- Resume source history
-- On-demand ATS-friendly DOCX export
-- On-demand PDF export
-- Raw-text export fallback for arbitrary uploaded layouts
-
-The PDF parser follows the current `pdf-parse` API and releases, while DOCX extraction uses Mammoth's documented `extractRawText` API. citeturn975333search0turn194865search0
-
-
-## Communication intelligence layer
-
-The mailbox layer supports Gmail and Microsoft Graph authorization, encrypted token storage, mailbox synchronization, normalized email storage, application-event detection, application-stage updates, follow-up stopping, and explicit outbound email approval.
-
-Google's server-side OAuth guidance uses an authorization code flow with offline access for background mailbox access; Microsoft documents the OAuth authorization-code flow with delegated Graph permissions. Gmail message listing exposes message/thread identifiers, and Graph supports delta-query change tracking for later incremental synchronization. See the official provider documentation. 
-
-
-## Recruiter intelligence layer
-
-CareerOS can discover recruiter and hiring-side contact candidates for a specific job through a provider-backed workflow:
-
-1. Resolve the employer domain from job metadata/URL or Hunter Domain Finder.
-2. Search Apollo for current recruiting or hiring-side people at that employer.
-3. Enrich the highest-signal candidates for LinkedIn URL, email, email status, and provider match metadata.
-4. Store source evidence, provider person IDs, job association, confidence, and verification state.
-5. Keep every discovered contact in `candidate` approval state until the user reviews it.
-6. Allow outreach only after the contact is explicitly approved and the email is provider-verified.
-
-Environment:
+## Validation
 
 ```bash
-APOLLO_API_KEY=
-HUNTER_API_KEY=
+npm run lint
+npm run typecheck
+npm run build
 ```
 
-Apollo's current People API Search supports employer-domain and title filters and does not return email addresses; People Enrichment can return a LinkedIn URL, email, and email status. Hunter's Domain Finder resolves a company name to likely employer domains. These provider integrations are optional until their credentials are configured. See the current provider documentation. 
+CI also runs CodeQL, Scorecard, dependency review, and the scheduled mailbox workflow.
 
+## Outcome learning
 
-## Persistent state + incremental sync
+The ranking learner uses observed application-stage events rather than treating non-applied jobs as negative outcomes. Calibration is conservative, capped, versioned, and exposed with supporting signals so ranking changes remain explainable.
 
-The dashboard now reads profile, jobs, applications and generated packages through authenticated server APIs. Application tracking is persisted in PostgreSQL rather than browser localStorage, and the application-package endpoint builds from the server-owned profile before persisting a new package version.
+The learner is empirical personalization infrastructure; it is not a prediction of an employer's decision or a guarantee of shortlisting.
 
-Mailbox synchronization now uses provider-native change cursors: Gmail stores a mailbox `historyId`, while Microsoft Graph stores separate Inbox and Sent Items delta links. Microsoft Graph delta returns opaque `@odata.nextLink` and `@odata.deltaLink` state URLs; Gmail's `history.list` returns changes after a stored `startHistoryId`. These cursors allow later syncs to request changes rather than repeatedly scanning the recent mailbox. citeturn935138search1turn474597search0
+## Mailbox automation
 
+The scheduled worker reuses Gmail history IDs and Microsoft Graph delta links rather than rescanning a mailbox on every run. Each connection carries sync scheduling/failure state and a short lease to reduce duplicate work. Outbound actions remain explicitly approved.
 
+## Resume intelligence
 
+Uploaded resumes support PDF/DOCX/TXT extraction, fingerprints for duplicate detection, parser warnings for scan-only PDFs, candidate fact extraction, source history, and on-demand artifact generation.
 
-## Outcome-Based Ranking Calibration
+## Evidence policy
 
-Job Radar now applies a separate calibrated relevance layer on top of the evidence-based base score. The current calibration implementation is `calibration-v2`:
-- Learns from observed application funnel depth using stage history rather than treating every rejection as an offer-stage record.
-- Calibrates across role family, seniority, package fit band, job source, and work mode.
-- Uses role-family × fit-band interactions when enough observations exist.
-- Applies Beta(2,2) smoothing and reliability weighting to reduce small-sample swings.
-- Requires at least 5 applications with an observed progression or rejection outcome before calibration changes Job Radar.
-- Caps the calibration contribution and keeps the base profile/JD score dominant; old v1 stored models are accepted while new retrains upgrade the stored methodology.
-- Exposes calibration adjustment, confidence, model version, and supporting signals in the jobs API.
+Application quality, ranking, parsing, and learning claims should be tied to reproducible artifacts and explicitly labeled as observed measurements, design targets, or deterministic test evidence.
 
-This is an empirical personalization layer based on the user's observed workflow. It is not a forecast of an employer's decision.
+## Review path
 
-## Mailbox AutomationOS
-
-Connected mailboxes now participate in a durable scheduled refresh loop:
-- Provider-native incremental cursors are reused by the scheduled worker.
-- Each connection has `nextSyncAt`, failure count, and a short lease to prevent duplicate work.
-- Successful syncs schedule the next refresh for 15 minutes later.
-- Failures use exponential backoff from 5 minutes up to 6 hours without disconnecting the mailbox.
-- The protected worker endpoint is `POST /api/workers/mailbox-refresh` and requires the `x-careeros-worker-secret` header.
-- GitHub Actions runs the worker every 15 minutes and also supports manual dispatch.
-
-Required GitHub Actions secrets:
-```text
-CAREEROS_BASE_URL=https://your-deployed-careeros-host
-CAREEROS_WORKER_SECRET=the-same-secret-used-by-the-app
-```
-
-The scheduler orchestrates existing Gmail history and Microsoft Graph delta synchronization; it does not replace those provider-native cursors or rescan the mailbox on every run.
-
-## Adaptive InterviewOS
-
-CareerOS now includes a persistent interview simulator at `/interview`:
-- JD- and evidence-grounded question generation
-- Mixed, technical, behavioral, and system-design modes
-- Per-answer scoring for correctness, depth, relevance, and communication
-- Persistent answer history with multiple attempts
-- Low-score adaptive follow-up questions inserted into the active session
-- Session completion scores, readiness summary, strengths, and gaps
-- Deterministic fallback behavior when `OPENAI_API_KEY` is unavailable
-
-Interview simulation is practice infrastructure only. Scores describe answer quality against the supplied rubric and do not predict employer decisions.
-
-## Outcome Learning Engine
-
-CareerOS now treats application outcomes as an observed feedback stream. Every application creation or stage transition records a tenant-scoped stage event with its source (user or mailbox). A versioned per-profile learning model aggregates observed applications into smoothed funnel rates by role family, package fit band, job source, and work mode.
-
-The learner is deliberately conservative: it never labels an un-applied job as a negative outcome, requires a minimum amount of observed history before changing Job Radar, and caps the learned relevance adjustment. Job Radar exposes the base score, learned adjustment, and learning model version so the UI can explain why a ranking changed. `/learning` exposes the baseline funnel, feature buckets, recent stage events, and manual retraining control.
-
-## Repository review path
-
-Start with [SECURITY.md](SECURITY.md), then inspect the authenticated API boundaries, database migrations, provider connectors, resume-artifact pipeline, mailbox synchronization, and learning/calibration layers. CI, CodeQL, dependency review, and scheduled mailbox checks provide the repository-level automated gates.
+Start with [SECURITY.md](SECURITY.md), then inspect authenticated API boundaries, provider connectors, database migrations, resume artifacts, mailbox synchronization, and learning/calibration code.
 
 ## Maintenance standard
 
-Never fabricate candidate facts, recruiter identities, contact data, outcomes, or ranking evidence. Keep secrets server-side, validate external/provider data at boundaries, and make scheduled mailbox work idempotent.
+Keep secrets server-side, external inputs schema-validated, scheduled mailbox work idempotent, and all generated candidate/recruiter facts traceable to source evidence.
+
+## License
+
+MIT

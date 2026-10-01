@@ -199,3 +199,11 @@ Interview simulation is practice infrastructure only. Scores describe answer qua
 CareerOS now treats application outcomes as an observed feedback stream. Every application creation or stage transition records a tenant-scoped stage event with its source (user or mailbox). A versioned per-profile learning model aggregates observed applications into smoothed funnel rates by role family, package fit band, job source, and work mode.
 
 The learner is deliberately conservative: it never labels an un-applied job as a negative outcome, requires a minimum amount of observed history before changing Job Radar, and caps the learned relevance adjustment. Job Radar exposes the base score, learned adjustment, and learning model version so the UI can explain why a ranking changed. `/learning` exposes the baseline funnel, feature buckets, recent stage events, and manual retraining control.
+
+## Repository review path
+
+Start with [SECURITY.md](SECURITY.md), then inspect the authenticated API boundaries, database migrations, provider connectors, resume-artifact pipeline, mailbox synchronization, and learning/calibration layers. CI, CodeQL, dependency review, and scheduled mailbox checks provide the repository-level automated gates.
+
+## Maintenance standard
+
+Never fabricate candidate facts, recruiter identities, contact data, outcomes, or ranking evidence. Keep secrets server-side, validate external/provider data at boundaries, and make scheduled mailbox work idempotent.

@@ -1,6 +1,8 @@
 # CareerOS — Evidence-Backed Job Search OS
 
-CareerOS turns a target role into a traceable application workflow:
+CareerOS turns a target role into a traceable application workflow that connects job discovery, candidate evidence, application preparation, outreach, interview practice, tracking, and observed outcomes.
+
+## Core workflow
 
 ```text
 Job
@@ -20,7 +22,11 @@ Application tracking
 Observed-outcome learning
 ```
 
-## Core capabilities
+## Why this architecture
+
+CareerOS treats a job application as an evidence pipeline rather than a one-shot text-generation task. Candidate facts stay anchored to source evidence, external job/provider data is validated at boundaries, and outbound actions remain approval-gated.
+
+## Capabilities
 
 - Profile-aware job discovery and job-description analysis.
 - Requirement-to-proof mapping and truth-locked resume generation.
@@ -28,36 +34,37 @@ Observed-outcome learning
 - Provider-bounded ingestion for public Lever and Ashby boards.
 - Recruiter-contact provenance and verification state.
 - Gmail and Microsoft Graph synchronization with provider-native cursors.
-- Explicit approval boundary for outbound email.
 - Persistent adaptive interview practice.
 - Outcome-based ranking calibration from observed application stages.
 - Scheduled mailbox refresh with leases/backoff and protected worker authentication.
-
-## Security model
-
-CareerOS must not fabricate candidate facts, recruiter identities, URLs, addresses, outcomes, or unsupported skills.
-
-External/provider data is schema-validated at API boundaries. Job ingestion accepts a provider + board rather than an arbitrary URL, reducing SSRF exposure. OAuth tokens and provider credentials remain server-side and pass through the application's encrypted credential boundary.
-
-Unknown information stays explicit rather than being guessed.
+- Explicit approval boundary for outbound email.
 
 ## Architecture
 
 ```text
-Next.js
- ├── authenticated API routes
- ├── PostgreSQL + Drizzle
+Application UI / API
+ ├── candidate profile
  ├── JD / resume intelligence
  ├── job ingestion adapters
- ├── mailbox adapters
  ├── recruiter intelligence
+ ├── mailbox adapters
  ├── interview engine
  └── outcome learning / calibration
+          │
+          └── persistent application state
 ```
+
+## Security and truthfulness
+
+CareerOS must not fabricate candidate facts, recruiter identities, URLs, addresses, outcomes, or unsupported skills.
+
+External/provider data is schema-validated at API boundaries. Job ingestion accepts a provider and board rather than an arbitrary URL, reducing SSRF exposure. OAuth tokens and provider credentials remain server-side and pass through the application's encrypted credential boundary.
+
+Unknown information remains explicit instead of being guessed.
 
 ## Environment
 
-Create `.env.local` with deployment-specific values.
+Create `.env.local` with deployment-specific values:
 
 ```text
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB
@@ -77,7 +84,7 @@ npm run dev
 
 Health endpoint: `GET /api/health`.
 
-## Validation
+## Verification
 
 ```bash
 npm run lint
@@ -85,7 +92,7 @@ npm run typecheck
 npm run build
 ```
 
-CI additionally runs CodeQL, Scorecard, dependency review, and the scheduled mailbox workflow.
+CI additionally validates CodeQL, Scorecard, dependency review, and scheduled mailbox behavior.
 
 ## Ranking and outcome learning
 
